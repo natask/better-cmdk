@@ -241,7 +241,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   const schedule = useScheduleLayoutEffect()
 
   /** Controlled mode `value` handling. */
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (value !== undefined) {
       const previousValue = state.current.value
       const v = value.trim()
@@ -328,7 +328,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     () => state.current.value,
   )
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true
       return
@@ -337,7 +337,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     scrollSelectedIntoView()
   }, [selectedValue])
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!state.current.search) return
     filterItems()
     sort()
@@ -792,7 +792,7 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>((props, forwardedRef) =
   const propsRef = useAsRef(props)
   const forceMount = propsRef.current?.forceMount ?? groupContext?.forceMount
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!forceMount) {
       return context.item(id, groupContext?.id)
     }
@@ -861,7 +861,7 @@ const Group = React.forwardRef<HTMLDivElement, GroupProps>((props, forwardedRef)
     forceMount ? true : context.filter() === false ? true : !state.search ? true : state.filtered.groups.has(id),
   )
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     return context.group(id, groupFilter)
   }, [id])
 
@@ -928,7 +928,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
     onValueChange?.(value, signal)
   }
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     debounceRef.current?.cancel()
     debounceRef.current = createAbortableDebounce(debounceDelay, (value, signal) => dispatchRef.current(value, signal))
     return () => {
@@ -1138,7 +1138,7 @@ function useAsRef<T>(data: T) {
   return ref
 }
 
-const useLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
 
 function useLazyRef<T>(fn: () => T) {
   const ref = React.useRef<T>()
@@ -1163,7 +1163,7 @@ function useValueSelected(value: React.MutableRefObject<string | undefined>) {
     return Boolean(store.snapshot().value && store.snapshot().value === value.current)
   })
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const isSelected = () => Boolean(store.snapshot().value && store.snapshot().value === value.current)
     setSelected(isSelected())
     return store.subscribeValue(value.current, () => {
@@ -1183,7 +1183,7 @@ function useValue(
   const valueRef = React.useRef<string>()
   const context = useCommand()
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const value = (() => {
       for (const part of deps) {
         if (typeof part === 'string') {
@@ -1214,7 +1214,7 @@ const useScheduleLayoutEffect = () => {
   const [s, ss] = React.useState<object>()
   const fns = useLazyRef(() => new Map<string | number, () => void>())
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     fns.current.forEach((f) => f())
     fns.current = new Map()
   }, [s])
