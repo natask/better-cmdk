@@ -2,7 +2,7 @@
 
 import * as RadixDialog from '@radix-ui/react-dialog'
 import * as React from 'react'
-import { commandScore } from './command-score'
+import { betterMatch } from './match'
 import { Primitive } from '@radix-ui/react-primitive'
 import { useId } from '@radix-ui/react-id'
 import { composeRefs } from '@radix-ui/react-compose-refs'
@@ -162,7 +162,7 @@ const ITEM_SELECTOR = `[cmdk-item=""]`
 const VALID_ITEM_SELECTOR = `${ITEM_SELECTOR}:not([aria-disabled="true"])`
 const SELECT_EVENT = `cmdk-item-select`
 const VALUE_ATTR = `data-value`
-const defaultFilter: CommandFilter = (value, search, keywords) => commandScore(value, search, keywords)
+const defaultFilter: CommandFilter = (value, search, keywords) => betterMatch(value, search, keywords)
 const visuallyHiddenStyle: React.CSSProperties = {
   position: 'absolute',
   width: 1,
@@ -962,6 +962,8 @@ const pkg = Object.assign(Command, {
 export { useCmdk as useCommandState }
 export { pkg as Command }
 export { defaultFilter }
+export { betterMatch } from './match'
+export { commandScore } from './command-score'
 
 export { Command as CommandRoot }
 export { List as CommandList }

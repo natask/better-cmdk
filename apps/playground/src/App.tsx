@@ -12,6 +12,7 @@ const items = [
 
 export function App() {
   const [value, setValue] = useState('')
+  const [accentSearch, setAccentSearch] = useState('')
   const [groupSearch, setGroupSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const specialGroupValue = 'a.b:c#d"e'
@@ -38,6 +39,23 @@ export function App() {
           ))}
         </Command.List>
       </Command>
+
+      <div style={{ marginTop: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Diacritic folding (type "cafe" to match "Café")</h2>
+        <Command label="Diacritic matcher demo" style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8 }}>
+          <Command.Input
+            value={accentSearch}
+            onValueChange={setAccentSearch}
+            placeholder='Try typing "cafe"...'
+            style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+          />
+          <Command.List style={{ marginTop: 8 }}>
+            <Command.Empty>No results.</Command.Empty>
+            <Command.Item value="Café">Café</Command.Item>
+            <Command.Item value="Tea">Tea</Command.Item>
+          </Command.List>
+        </Command>
+      </div>
 
       <div style={{ marginTop: 20 }}>
         <button onClick={() => setDialogOpen((open) => !open)}>{dialogOpen ? 'Close' : 'Open'} dialog</button>
