@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Command } from 'better-cmdk'
 
 const items = [
@@ -27,6 +27,7 @@ const perfDemoItems = Array.from({ length: 500 }, (_, i) => ({
   value: `perf-item-${i + 1}`,
   label: `Perf Item ${i + 1}`,
 }))
+const asyncDemoItems = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon']
 const alwaysMatch = () => 1
 
 export function App() {
@@ -38,8 +39,37 @@ export function App() {
   const [scrollSearch, setScrollSearch] = useState('')
   const [perfSearch, setPerfSearch] = useState('')
   const [groupFilterSearch, setGroupFilterSearch] = useState('')
+  const [asyncItems, setAsyncItems] = useState(asyncDemoItems)
+  const [asyncLoading, setAsyncLoading] = useState(false)
+  const [asyncStatus, setAsyncStatus] = useState('Idle')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const asyncRequestId = useRef(0)
   const specialGroupValue = 'a.b:c#d"e'
+
+  const onAsyncValueChange = (search: string, signal?: AbortSignal) => {
+    const requestId = ++asyncRequestId.current
+    setAsyncLoading(true)
+    setAsyncStatus(`Searching "${search || '(all)'}"...`)
+
+    const timer = setTimeout(() => {
+      if (signal?.aborted) return
+      if (requestId !== asyncRequestId.current) return
+      const next = asyncDemoItems.filter((item) => item.toLowerCase().includes(search.toLowerCase()))
+      setAsyncItems(next)
+      setAsyncLoading(false)
+      setAsyncStatus(`Loaded ${next.length} result${next.length === 1 ? '' : 's'}`)
+    }, 300)
+
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        if (requestId !== asyncRequestId.current) return
+        setAsyncStatus(`Cancelled "${search || '(all)'}"`)
+      },
+      { once: true },
+    )
+  }
 
   return (
     <div style={{ fontFamily: 'system-ui', padding: 24, maxWidth: 560 }}>
@@ -221,6 +251,26 @@ export function App() {
               <Command.Item>Standard Alpha</Command.Item>
               <Command.Item>Standard Beta</Command.Item>
             </Command.Group>
+          </Command.List>
+        </Command>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Async search (debounce + AbortSignal)</h2>
+        <p style={{ margin: '0 0 8px', color: '#666', fontSize: 12 }}>{asyncStatus}</p>
+        <Command label="Async Demo" loading={asyncLoading} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8 }}>
+          <Command.Input
+            debounce={150}
+            onValueChange={onAsyncValueChange}
+            placeholder='Type quickly, e.g. "alp"...'
+            style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+          />
+          <Command.List style={{ marginTop: 8 }}>
+            <Command.Loading>Loading async results...</Command.Loading>
+            <Command.Empty>No results.</Command.Empty>
+            {asyncItems.map((item) => (
+              <Command.Item key={item}>{item}</Command.Item>
+            ))}
           </Command.List>
         </Command>
       </div>

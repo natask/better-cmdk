@@ -3,6 +3,7 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
 import * as React from 'react'
 import { betterMatch } from './match'
+import { createAbortableDebounce } from './async'
 import { Primitive } from '@radix-ui/react-primitive'
 import { useId } from '@radix-ui/react-id'
 import { composeRefs } from '@radix-ui/react-compose-refs'
@@ -73,6 +74,8 @@ type GroupProps = Children &
     forceMount?: boolean
   }
 type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+  /** Debounce delay in ms for search updates and onValueChange callbacks. */
+  debounce?: number
   /**
    * Optional controlled state for the value of the search input.
    */
@@ -80,7 +83,7 @@ type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'o
   /**
    * Event handler called when the search value changes.
    */
-  onValueChange?: (search: string) => void
+  onValueChange?: (search: string, signal?: AbortSignal) => void
 }
 type CommandFilter = (value: string, search: string, keywords?: string[]) => number
 type CommandProps = Children &
@@ -94,6 +97,8 @@ type CommandProps = Children &
      * If `false`, you must conditionally render valid items based on the search query yourself.
      */
     shouldFilter?: boolean
+    /** Whether Command.Loading content should be shown. */
+    loading?: boolean
     /**
      * Custom filter function for whether each command menu item should matches the given search query.
      * It should return a number between 0 and 1, with 1 being the best match and 0 being hidden entirely.
@@ -131,6 +136,7 @@ type Context = {
   item: (id: string, groupId?: string) => () => void
   group: (id: string, filter?: CommandFilter) => () => void
   filter: () => boolean
+  getLoading: () => boolean | undefined
   label: string
   getDisablePointerSelection: () => boolean
   // Ids
@@ -218,6 +224,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     onValueChange,
     filter,
     shouldFilter,
+    loading,
     loop,
     disablePointerSelection = false,
     vimBindings = true,
@@ -418,6 +425,9 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       },
       filter: () => {
         return propsRef.current.shouldFilter
+      },
+      getLoading: () => {
+        return propsRef.current.loading
       },
       label: label || props['aria-label'],
       getDisablePointerSelection: () => {
@@ -900,12 +910,31 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>((props, forwa
  * All props are forwarded to the underyling `input` element.
  */
 const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRef) => {
-  const { onValueChange, type = 'search', ...etc } = props
+  const { onValueChange, debounce = 0, type = 'search', ...etc } = props
   const isControlled = props.value != null
   const store = useStore()
   const search = useCmdk((state) => state.search)
   const selectedItemId = useCmdk((state) => state.selectedItemId)
   const context = useCommand()
+  const dispatchRef = React.useRef<(value: string, signal: AbortSignal) => void>(() => undefined)
+  const debounceRef = React.useRef<ReturnType<typeof createAbortableDebounce>>()
+  const debounceDelay = Math.max(0, debounce)
+
+  dispatchRef.current = (value, signal) => {
+    if (!isControlled) {
+      store.setState('search', value)
+    }
+
+    onValueChange?.(value, signal)
+  }
+
+  useLayoutEffect(() => {
+    debounceRef.current?.cancel()
+    debounceRef.current = createAbortableDebounce(debounceDelay, (value, signal) => dispatchRef.current(value, signal))
+    return () => {
+      debounceRef.current?.cancel()
+    }
+  }, [debounceDelay])
 
   React.useEffect(() => {
     if (props.value != null) {
@@ -931,11 +960,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
       type={type}
       value={isControlled ? props.value : search}
       onChange={(e) => {
-        if (!isControlled) {
-          store.setState('search', e.target.value)
-        }
-
-        onValueChange?.(e.target.value)
+        debounceRef.current?.queue(e.target.value)
       }}
     />
   )
@@ -1029,6 +1054,10 @@ const Empty = React.forwardRef<HTMLDivElement, EmptyProps>((props, forwardedRef)
  */
 const Loading = React.forwardRef<HTMLDivElement, LoadingProps>((props, forwardedRef) => {
   const { progress, children, label = 'Loading...', ...etc } = props
+  const context = useCommand()
+  const loading = context.getLoading()
+
+  if (loading === false) return null
 
   return (
     <Primitive.div
