@@ -433,9 +433,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     groups
       .sort((a, b) => b[1] - a[1])
       .forEach((group) => {
-        const element = listInnerRef.current?.querySelector(
-          `${GROUP_SELECTOR}[${VALUE_ATTR}="${encodeURIComponent(group[0])}"]`,
-        )
+        const element = listInnerRef.current?.querySelector(`#${CSS.escape(group[0])}`)
         element?.parentElement.appendChild(element)
       })
   }
@@ -742,8 +740,9 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>((props, forwardedRef) =
  * Grouped items are always shown together.
  */
 const Group = React.forwardRef<HTMLDivElement, GroupProps>((props, forwardedRef) => {
-  const { heading, children, forceMount, ...etc } = props
-  const id = useId()
+  const { heading, children, forceMount, id: groupId, ...etc } = props
+  const internalId = useId()
+  const id = groupId ?? internalId
   const ref = React.useRef<HTMLDivElement>(null)
   const headingRef = React.useRef<HTMLDivElement>(null)
   const headingId = useId()
@@ -764,6 +763,7 @@ const Group = React.forwardRef<HTMLDivElement, GroupProps>((props, forwardedRef)
     <Primitive.div
       ref={composeRefs(ref, forwardedRef)}
       {...etc}
+      id={id}
       cmdk-group=""
       role="presentation"
       hidden={render ? undefined : true}
