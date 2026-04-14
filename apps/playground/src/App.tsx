@@ -23,6 +23,9 @@ export function App() {
         <Command.Input
           value={value}
           onValueChange={setValue}
+          type="search"
+          autoComplete="off"
+          data-testid="playground-search-input"
           placeholder="Type to search…"
           style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
         />
