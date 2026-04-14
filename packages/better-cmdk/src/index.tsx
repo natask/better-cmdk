@@ -222,6 +222,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   const inputId = useId()
 
   const listInnerRef = React.useRef<HTMLDivElement>(null)
+  const hasMountedRef = React.useRef(false)
 
   const schedule = useScheduleLayoutEffect()
 
@@ -233,10 +234,6 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       store.emit()
     }
   }, [value])
-
-  useLayoutEffect(() => {
-    schedule(6, scrollSelectedIntoView)
-  }, [])
 
   const store: Store = React.useMemo(() => {
     return {
@@ -269,11 +266,6 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
             store.emit()
           })
 
-          // opts is a boolean referring to whether it should NOT be scrolled into view
-          if (!opts) {
-            // Scroll the selected item into view
-            schedule(5, scrollSelectedIntoView)
-          }
           if (propsRef.current?.value !== undefined) {
             // If controlled, just call the callback instead of updating state internally
             const newValue = (value ?? '') as string
@@ -290,6 +282,20 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       },
     }
   }, [])
+  const selectedValue = React.useSyncExternalStore(
+    store.subscribe,
+    () => state.current.value,
+    () => state.current.value,
+  )
+
+  useLayoutEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
+      return
+    }
+
+    scrollSelectedIntoView()
+  }, [selectedValue])
 
   const context: Context = React.useMemo(
     () => ({
@@ -515,14 +521,21 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
 
   function scrollSelectedIntoView() {
     const item = getSelectedItem()
+    const list = listInnerRef.current
 
-    if (item) {
+    if (item && list) {
+      const itemRect = item.getBoundingClientRect()
+      const listRect = list.getBoundingClientRect()
+      const isAbove = itemRect.top < listRect.top
+      const isBelow = itemRect.bottom > listRect.bottom
+      if (!isAbove && !isBelow) return
+
       if (item.parentElement?.firstChild === item) {
-        // First item in Group, ensure heading is in view
+        // First item in Group, ensure heading is in view.
         item.closest(GROUP_SELECTOR)?.querySelector(GROUP_HEADING_SELECTOR)?.scrollIntoView({ block: 'nearest' })
       }
 
-      // Ensure the item is always in view
+      // Ensure the item is always in view.
       item.scrollIntoView({ block: 'nearest' })
     }
   }

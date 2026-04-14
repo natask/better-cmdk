@@ -8,6 +8,7 @@ test.describe('selection across filter changes', async () => {
   test('keeps selected value when narrowing search still includes it', async ({ page }) => {
     const input = page.locator(`[cmdk-input]`)
     const selected = page.locator(`[cmdk-item][aria-selected="true"]`)
+    await expect(selected).toHaveAttribute('data-value', 'alpha')
 
     await input.press('ArrowDown')
     await input.press('ArrowDown')
@@ -30,6 +31,7 @@ test.describe('selection across filter changes', async () => {
   test('selects first visible value when current selection is filtered out', async ({ page }) => {
     const input = page.locator(`[cmdk-input]`)
     const selected = page.locator(`[cmdk-item][aria-selected="true"]`)
+    await expect(selected).toHaveAttribute('data-value', 'alpha')
 
     await input.press('ArrowDown')
     await input.press('ArrowDown')

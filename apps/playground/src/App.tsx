@@ -19,6 +19,10 @@ const selectionDemoItems = [
   { value: 'golf', label: 'Golf' },
   { value: 'hotel', label: 'Hotel' },
 ]
+const scrollDemoItems = Array.from({ length: 100 }, (_, i) => ({
+  value: `item-${i + 1}`,
+  label: `Item ${i + 1}`,
+}))
 
 export function App() {
   const [value, setValue] = useState('')
@@ -26,6 +30,7 @@ export function App() {
   const [groupSearch, setGroupSearch] = useState('')
   const [groupOrderSearch, setGroupOrderSearch] = useState('')
   const [selectionSearch, setSelectionSearch] = useState('')
+  const [scrollSearch, setScrollSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const specialGroupValue = 'a.b:c#d"e'
 
@@ -142,6 +147,26 @@ export function App() {
           <Command.List style={{ marginTop: 8, maxHeight: 180, overflow: 'auto' }}>
             <Command.Empty>No results.</Command.Empty>
             {selectionDemoItems.map((item) => (
+              <Command.Item key={item.value} value={item.value}>
+                {item.label}
+              </Command.Item>
+            ))}
+          </Command.List>
+        </Command>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Stable keyboard scrolling in long lists</h2>
+        <Command label="Scroll Demo" style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8 }}>
+          <Command.Input
+            value={scrollSearch}
+            onValueChange={setScrollSearch}
+            placeholder="Arrow down through the list…"
+            style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+          />
+          <Command.List style={{ marginTop: 8, maxHeight: 200, overflow: 'auto' }}>
+            <Command.Empty>No results.</Command.Empty>
+            {scrollDemoItems.map((item) => (
               <Command.Item key={item.value} value={item.value}>
                 {item.label}
               </Command.Item>
