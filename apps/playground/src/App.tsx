@@ -9,12 +9,23 @@ const items = [
   { id: 'github', label: 'GitHub', keywords: ['gh', 'git'] },
   { id: 'settings', label: 'Settings', keywords: ['prefs', 'config'] },
 ]
+const selectionDemoItems = [
+  { value: 'alpha', label: 'Alpha' },
+  { value: 'bravo', label: 'Bravo' },
+  { value: 'charlie', label: 'Charlie' },
+  { value: 'delta', label: 'Delta' },
+  { value: 'echo', label: 'Echo' },
+  { value: 'foxtrot', label: 'Foxtrot' },
+  { value: 'golf', label: 'Golf' },
+  { value: 'hotel', label: 'Hotel' },
+]
 
 export function App() {
   const [value, setValue] = useState('')
   const [accentSearch, setAccentSearch] = useState('')
   const [groupSearch, setGroupSearch] = useState('')
   const [groupOrderSearch, setGroupOrderSearch] = useState('')
+  const [selectionSearch, setSelectionSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const specialGroupValue = 'a.b:c#d"e'
 
@@ -115,6 +126,26 @@ export function App() {
             <Command.Group heading="C">
               <Command.Item>Cherry</Command.Item>
             </Command.Group>
+          </Command.List>
+        </Command>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Selection stays when filtered result still contains it</h2>
+        <Command label="Selection Preserve Demo" style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8 }}>
+          <Command.Input
+            value={selectionSearch}
+            onValueChange={setSelectionSearch}
+            placeholder='Select "Echo", then type "o"...'
+            style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+          />
+          <Command.List style={{ marginTop: 8, maxHeight: 180, overflow: 'auto' }}>
+            <Command.Empty>No results.</Command.Empty>
+            {selectionDemoItems.map((item) => (
+              <Command.Item key={item.value} value={item.value}>
+                {item.label}
+              </Command.Item>
+            ))}
           </Command.List>
         </Command>
       </div>

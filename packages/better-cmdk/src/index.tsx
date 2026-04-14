@@ -255,7 +255,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           // Filter synchronously before emitting back to children
           filterItems()
           sort()
-          schedule(1, selectFirstItem)
+          schedule(1, selectFirstItemOnSearch)
         } else if (key === 'value') {
           // Force focus input or root so accessibility works
           if (document.activeElement.hasAttribute('cmdk-input') || document.activeElement.hasAttribute('cmdk-root')) {
@@ -457,6 +457,22 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     const item = getValidItems().find((item) => item.getAttribute('aria-disabled') !== 'true')
     const value = item?.getAttribute(VALUE_ATTR)
     store.setState('value', value || undefined)
+  }
+
+  function selectFirstItemOnSearch() {
+    if (state.current.value && isSelectedValueVisible()) {
+      return
+    }
+    selectFirstItem()
+  }
+
+  function isSelectedValueVisible() {
+    for (const id of allItems.current) {
+      if (ids.current.get(id)?.value !== state.current.value) continue
+      if (propsRef.current.shouldFilter === false || !state.current.search) return true
+      if ((state.current.filtered.items.get(id) ?? 0) > 0) return true
+    }
+    return false
   }
 
   /** Filters the current items. */
