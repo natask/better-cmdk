@@ -146,6 +146,7 @@ type State = {
 }
 type Store = {
   subscribe: (callback: () => void) => () => void
+  subscribeValue: (value: string | undefined, callback: () => void) => () => void
   snapshot: () => State
   setState: <K extends keyof State>(key: K, value: State[K], opts?: any) => void
   emit: () => void
@@ -203,6 +204,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   const groupsInitialOrder = useLazyRef<string[]>(() => []) // [...groupIds]
   const ids = useLazyRef<Map<string, { value: string; keywords?: string[] }>>(() => new Map()) // id → { value, keywords }
   const listeners = useLazyRef<Set<() => void>>(() => new Set()) // [...rerenders]
+  const valueListeners = useLazyRef<Map<string | undefined, Set<() => void>>>(() => new Map()) // value → [...rerenders]
   const propsRef = useAsRef(props)
   const {
     label,
@@ -229,8 +231,11 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   /** Controlled mode `value` handling. */
   useLayoutEffect(() => {
     if (value !== undefined) {
+      const previousValue = state.current.value
       const v = value.trim()
+      if (Object.is(previousValue, v)) return
       state.current.value = v
+      emitValueListeners(previousValue, v)
       store.emit()
     }
   }, [value])
@@ -241,10 +246,29 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         listeners.current.add(cb)
         return () => listeners.current.delete(cb)
       },
+      subscribeValue: (value, cb) => {
+        const valueListener = valueListeners.current.get(value)
+
+        if (valueListener) {
+          valueListener.add(cb)
+        } else {
+          valueListeners.current.set(value, new Set([cb]))
+        }
+
+        return () => {
+          const currentValueListener = valueListeners.current.get(value)
+          if (!currentValueListener) return
+          currentValueListener.delete(cb)
+          if (currentValueListener.size === 0) {
+            valueListeners.current.delete(value)
+          }
+        }
+      },
       snapshot: () => {
         return state.current
       },
       setState: (key, value, opts) => {
+        const previousValue = key === 'value' ? state.current.value : undefined
         if (Object.is(state.current[key], value)) return
         state.current[key] = value
 
@@ -254,6 +278,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           sort()
           schedule(1, selectFirstItemOnSearch)
         } else if (key === 'value') {
+          emitValueListeners(previousValue, value as string | undefined)
+
           // Force focus input or root so accessibility works
           if (document.activeElement.hasAttribute('cmdk-input') || document.activeElement.hasAttribute('cmdk-root')) {
             const input = document.getElementById(inputId)
@@ -274,8 +300,10 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           }
         }
 
-        // Notify subscribers that state has changed
-        store.emit()
+        // Notify global subscribers for non-value updates.
+        if (key !== 'value') {
+          store.emit()
+        }
       },
       emit: () => {
         listeners.current.forEach((l) => l())
@@ -296,6 +324,14 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
 
     scrollSelectedIntoView()
   }, [selectedValue])
+
+  useLayoutEffect(() => {
+    if (!state.current.search) return
+    filterItems()
+    sort()
+    selectFirstItemOnSearch()
+    store.emit()
+  }, [filter, shouldFilter])
 
   const context: Context = React.useMemo(
     () => ({
@@ -389,6 +425,15 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   function score(value: string, keywords?: string[]) {
     const filter = propsRef.current?.filter ?? defaultFilter
     return value ? filter(value, state.current.search, keywords) : 0
+  }
+
+  function emitValueListeners(previousValue: string | undefined, nextValue: string | undefined) {
+    const fns = new Set<() => void>()
+
+    valueListeners.current.get(previousValue)?.forEach((fn) => fns.add(fn))
+    valueListeners.current.get(nextValue)?.forEach((fn) => fns.add(fn))
+
+    fns.forEach((fn) => fn())
   }
 
   /** Sorts items by score, and groups by highest item score. */
@@ -735,7 +780,7 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>((props, forwardedRef) =
   const value = useValue(id, ref, [props.value, props.children, ref], props.keywords)
 
   const store = useStore()
-  const selected = useCmdk((state) => state.value && state.value === value.current)
+  const selected = useValueSelected(value)
   const render = useCmdk((state) =>
     forceMount ? true : context.filter() === false ? true : !state.search ? true : state.filtered.items.get(id) > 0,
   )
@@ -1048,9 +1093,7 @@ function findPreviousSibling(el: Element, selector: string) {
 function useAsRef<T>(data: T) {
   const ref = React.useRef<T>(data)
 
-  useLayoutEffect(() => {
-    ref.current = data
-  })
+  ref.current = data
 
   return ref
 }
@@ -1072,6 +1115,23 @@ function useCmdk<T = any>(selector: (state: State) => T): T {
   const store = useStore()
   const cb = () => selector(store.snapshot())
   return React.useSyncExternalStore(store.subscribe, cb, cb)
+}
+
+function useValueSelected(value: React.MutableRefObject<string | undefined>) {
+  const store = useStore()
+  const [selected, setSelected] = React.useState(() => {
+    return Boolean(store.snapshot().value && store.snapshot().value === value.current)
+  })
+
+  useLayoutEffect(() => {
+    const isSelected = () => Boolean(store.snapshot().value && store.snapshot().value === value.current)
+    setSelected(isSelected())
+    return store.subscribeValue(value.current, () => {
+      setSelected(isSelected())
+    })
+  }, [store, value.current])
+
+  return selected
 }
 
 function useValue(
