@@ -1,0 +1,56 @@
+{
+  "name": "better-cmdk",
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "A drop-in replacement for cmdk — same API, smarter matcher, bug fixes, plugin surface.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src",
+    "dev": "tsup src --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"unit tests TBD\" && exit 0",
+    "test:e2e": "../../node_modules/.bin/playwright test"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "dependencies": {
+    "@radix-ui/react-compose-refs": "^1.1.1",
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-id": "^1.1.0",
+    "@radix-ui/react-primitive": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.0"
+  },
+  "sideEffects": false,
+  "keywords": [
+    "cmdk",
+    "command",
+    "palette",
+    "menu",
+    "search",
+    "react"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/natask/better-cmdk.git",
+    "directory": "packages/better-cmdk"
+  }
+}
