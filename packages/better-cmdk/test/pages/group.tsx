@@ -40,6 +40,23 @@ const Page = () => {
           )}
         </Command.List>
       </Command>
+
+      <div data-testid="restore-order-demo">
+        <Command>
+          <Command.Input data-testid="restore-order-input" placeholder="Type banana then clear..." />
+          <Command.List>
+            <Command.Group heading="A">
+              <Command.Item>Apple</Command.Item>
+            </Command.Group>
+            <Command.Group heading="B">
+              <Command.Item>Banana</Command.Item>
+            </Command.Group>
+            <Command.Group heading="C">
+              <Command.Item>Cherry</Command.Item>
+            </Command.Group>
+          </Command.List>
+        </Command>
+      </div>
     </div>
   )
 }

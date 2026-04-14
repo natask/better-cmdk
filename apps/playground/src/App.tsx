@@ -14,6 +14,7 @@ export function App() {
   const [value, setValue] = useState('')
   const [accentSearch, setAccentSearch] = useState('')
   const [groupSearch, setGroupSearch] = useState('')
+  const [groupOrderSearch, setGroupOrderSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const specialGroupValue = 'a.b:c#d"e'
 
@@ -90,6 +91,29 @@ export function App() {
             </Command.Group>
             <Command.Group heading="Special characters" value={specialGroupValue}>
               <Command.Item value="needle-item">Special Needle</Command.Item>
+            </Command.Group>
+          </Command.List>
+        </Command>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Group order restores after clear</h2>
+        <Command label="Group Order Demo" style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8 }}>
+          <Command.Input
+            value={groupOrderSearch}
+            onValueChange={setGroupOrderSearch}
+            placeholder='Type "banana", then clear'
+            style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+          />
+          <Command.List style={{ marginTop: 8 }}>
+            <Command.Group heading="A">
+              <Command.Item>Apple</Command.Item>
+            </Command.Group>
+            <Command.Group heading="B">
+              <Command.Item>Banana</Command.Item>
+            </Command.Group>
+            <Command.Group heading="C">
+              <Command.Item>Cherry</Command.Item>
             </Command.Group>
           </Command.List>
         </Command>

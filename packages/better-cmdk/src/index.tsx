@@ -200,6 +200,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   }))
   const allItems = useLazyRef<Set<string>>(() => new Set()) // [...itemIds]
   const allGroups = useLazyRef<Map<string, Set<string>>>(() => new Map()) // groupId → [...itemIds]
+  const groupsInitialOrder = useLazyRef<string[]>(() => []) // [...groupIds]
   const ids = useLazyRef<Map<string, { value: string; keywords?: string[] }>>(() => new Map()) // id → { value, keywords }
   const listeners = useLazyRef<Set<() => void>>(() => new Set()) // [...rerenders]
   const propsRef = useAsRef(props)
@@ -353,10 +354,15 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         if (!allGroups.current.has(id)) {
           allGroups.current.set(id, new Set())
         }
+        if (!groupsInitialOrder.current.includes(id)) {
+          groupsInitialOrder.current.push(id)
+        }
 
         return () => {
           ids.current.delete(id)
           allGroups.current.delete(id)
+          const index = groupsInitialOrder.current.indexOf(id)
+          if (index !== -1) groupsInitialOrder.current.splice(index, 1)
         }
       },
       filter: () => {
@@ -381,11 +387,20 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
 
   /** Sorts items by score, and groups by highest item score. */
   function sort() {
-    if (
-      !state.current.search ||
-      // Explicitly false, because true | undefined is the default
-      propsRef.current.shouldFilter === false
-    ) {
+    // Explicitly false, because true | undefined is the default
+    if (propsRef.current.shouldFilter === false) {
+      return
+    }
+
+    if (!state.current.search) {
+      if (state.current.filtered.groups.size === 0) {
+        return
+      }
+      for (const groupId of groupsInitialOrder.current) {
+        const element = listInnerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(groupId)}`)
+        element?.parentElement?.appendChild(element)
+      }
+      state.current.filtered.groups = new Set()
       return
     }
 
