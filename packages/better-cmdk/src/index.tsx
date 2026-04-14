@@ -74,6 +74,8 @@ type GroupProps = Children &
     forceMount?: boolean
   }
 type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+  /** Optional id override for the underlying input element. */
+  inputId?: string
   /** Debounce delay in ms for search updates and onValueChange callbacks. */
   debounce?: number
   /**
@@ -115,9 +117,17 @@ type CommandProps = Children &
      */
     defaultValue?: string
     /**
+     * Optional uncontrolled initial value for the search input.
+     */
+    defaultSearch?: string
+    /**
      * Optional controlled state of the selected command menu item.
      */
     value?: string
+    /**
+     * Called when results transition into an empty state while search is non-empty.
+     */
+    onEmpty?: () => void
     /**
      * Event handler called when the selected item of the menu changes.
      */
@@ -146,7 +156,6 @@ type Context = {
   getDisablePointerSelection: () => boolean
   // Ids
   listId: string
-  labelId: string
   inputId: string
   // Refs
   listInnerRef: React.RefObject<HTMLDivElement | null>
@@ -199,7 +208,7 @@ const GroupContext = React.createContext<Group>(undefined)
 const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwardedRef) => {
   const state = useLazyRef<State>(() => ({
     /** Value of the search query. */
-    search: '',
+    search: props.defaultSearch ?? '',
     /** Currently selected item value. */
     value: props.value ?? props.defaultValue ?? '',
     /** Currently selected item id. */
@@ -231,6 +240,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     shouldFilter,
     loading,
     cspNonce: _cspNonce,
+    defaultSearch: _defaultSearch,
+    onEmpty,
     loop,
     disablePointerSelection = false,
     vimBindings = true,
@@ -238,7 +249,6 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   } = props
 
   const listId = useId()
-  const labelId = useId()
   const inputId = useId()
 
   const listInnerRef = React.useRef<HTMLDivElement>(null)
@@ -333,6 +343,13 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     () => state.current.value,
     () => state.current.value,
   )
+  const isFilteredEmpty = React.useSyncExternalStore(
+    store.subscribe,
+    () => state.current.search !== '' && state.current.filtered.count === 0,
+    () => state.current.search !== '' && state.current.filtered.count === 0,
+  )
+  const hasMountedEmptyRef = React.useRef(false)
+  const wasFilteredEmptyRef = React.useRef(isFilteredEmpty)
 
   useIsomorphicLayoutEffect(() => {
     if (!hasMountedRef.current) {
@@ -350,6 +367,20 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     selectFirstItemOnSearch()
     store.emit()
   }, [filter, shouldFilter])
+
+  useIsomorphicLayoutEffect(() => {
+    if (!hasMountedEmptyRef.current) {
+      hasMountedEmptyRef.current = true
+      wasFilteredEmptyRef.current = isFilteredEmpty
+      return
+    }
+
+    if (isFilteredEmpty && !wasFilteredEmptyRef.current) {
+      propsRef.current.onEmpty?.()
+    }
+
+    wasFilteredEmptyRef.current = isFilteredEmpty
+  }, [isFilteredEmpty])
 
   const context: Context = React.useMemo(
     () => ({
@@ -435,13 +466,12 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       getLoading: () => {
         return propsRef.current.loading
       },
-      label: label || props['aria-label'],
+      label: label || props['aria-label'] || 'Command Menu',
       getDisablePointerSelection: () => {
         return propsRef.current.disablePointerSelection
       },
       listId,
       inputId,
-      labelId,
       listInnerRef,
     }),
     [],
@@ -767,15 +797,6 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
       }}
     >
-      <label
-        cmdk-label=""
-        htmlFor={context.inputId}
-        id={context.labelId}
-        // Screen reader only
-        style={srOnlyStyles}
-      >
-        {label}
-      </label>
       {SlottableWithNestedChildren(props, (child) => (
         <StoreContext.Provider value={store}>
           <CommandContext.Provider value={context}>{child}</CommandContext.Provider>
@@ -916,7 +937,17 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>((props, forwa
  * All props are forwarded to the underyling `input` element.
  */
 const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRef) => {
-  const { onValueChange, debounce = 0, type = 'search', ...etc } = props
+  const {
+    onValueChange,
+    debounce = 0,
+    type = 'search',
+    inputId,
+    id,
+    onCompositionStart: onCompositionStartProp,
+    onCompositionEnd: onCompositionEndProp,
+    'aria-label': ariaLabel,
+    ...etc
+  } = props
   const isControlled = props.value != null
   const store = useStore()
   const search = useCmdk((state) => state.search)
@@ -924,6 +955,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
   const context = useCommand()
   const dispatchRef = React.useRef<(value: string, signal: AbortSignal) => void>(() => undefined)
   const debounceRef = React.useRef<ReturnType<typeof createAbortableDebounce>>()
+  const isComposingRef = React.useRef(false)
+  const compositionValueRef = React.useRef<string>()
+  const [isComposing, setIsComposing] = React.useState(false)
+  const [compositionValue, setCompositionValue] = React.useState<string>()
   const debounceDelay = Math.max(0, debounce)
 
   dispatchRef.current = (value, signal) => {
@@ -960,13 +995,37 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
       role="combobox"
       aria-expanded={true}
       aria-controls={context.listId}
-      aria-labelledby={context.labelId}
+      aria-label={ariaLabel ?? context.label}
       aria-activedescendant={selectedItemId}
-      id={context.inputId}
+      id={inputId ?? id ?? context.inputId}
       type={type}
-      value={isControlled ? props.value : search}
+      value={isComposing ? compositionValue ?? (isControlled ? props.value : search) : isControlled ? props.value : search}
       onChange={(e) => {
+        const nativeEvent = e.nativeEvent as InputEvent & { isComposing?: boolean }
+        if (isComposingRef.current || nativeEvent.isComposing) {
+          compositionValueRef.current = e.target.value
+          setCompositionValue(e.target.value)
+          return
+        }
+
         debounceRef.current?.queue(e.target.value)
+      }}
+      onCompositionStart={(e) => {
+        isComposingRef.current = true
+        setIsComposing(true)
+        compositionValueRef.current = e.currentTarget.value
+        setCompositionValue(e.currentTarget.value)
+        debounceRef.current?.cancel()
+        onCompositionStartProp?.(e)
+      }}
+      onCompositionEnd={(e) => {
+        isComposingRef.current = false
+        setIsComposing(false)
+        const value = compositionValueRef.current ?? e.currentTarget.value
+        compositionValueRef.current = undefined
+        setCompositionValue(undefined)
+        debounceRef.current?.queue(value)
+        onCompositionEndProp?.(e)
       }}
     />
   )
@@ -1297,15 +1356,3 @@ function SlottableWithNestedChildren(
   }
   return render(children)
 }
-
-const srOnlyStyles = {
-  position: 'absolute',
-  width: '1px',
-  height: '1px',
-  padding: '0',
-  margin: '-1px',
-  overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
-  whiteSpace: 'nowrap',
-  borderWidth: '0',
-} as const

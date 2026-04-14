@@ -42,6 +42,9 @@ export function App() {
   const [asyncItems, setAsyncItems] = useState(asyncDemoItems)
   const [asyncLoading, setAsyncLoading] = useState(false)
   const [asyncStatus, setAsyncStatus] = useState('Idle')
+  const [dxEmptyHits, setDxEmptyHits] = useState(0)
+  const [dxSearchEcho, setDxSearchEcho] = useState('')
+  const [dxImeCalls, setDxImeCalls] = useState<string[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const asyncRequestId = useRef(0)
   const specialGroupValue = 'a.b:c#d"e'
@@ -273,6 +276,47 @@ export function App() {
             {asyncItems.map((item) => (
               <Command.Item key={item}>{item}</Command.Item>
             ))}
+          </Command.List>
+        </Command>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>DX bundle: inputId + defaultSearch + onEmpty + IME</h2>
+        <label htmlFor="playground-dx-input" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+          External label for inputId
+        </label>
+        <p style={{ margin: '0 0 8px', color: '#666', fontSize: 12 }}>
+          onEmpty hits: {dxEmptyHits} | Last value: {dxSearchEcho || '(empty)'}
+        </p>
+        <Command
+          label="DX Demo"
+          defaultSearch="set"
+          onEmpty={() => setDxEmptyHits((hits) => hits + 1)}
+          style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8 }}
+        >
+          <Command.Input
+            inputId="playground-dx-input"
+            onValueChange={setDxSearchEcho}
+            placeholder='Type "zzz" to trigger onEmpty...'
+            style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+          />
+          <Command.List style={{ marginTop: 8 }}>
+            <Command.Empty>No results.</Command.Empty>
+            <Command.Item>settings</Command.Item>
+            <Command.Item>setup</Command.Item>
+            <Command.Item>help</Command.Item>
+          </Command.List>
+        </Command>
+        <p style={{ margin: '8px 0', color: '#666', fontSize: 12 }}>IME calls: {dxImeCalls.join(' | ') || 'none'}</p>
+        <Command label="IME Demo" style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8 }}>
+          <Command.Input
+            placeholder="Start IME composition..."
+            onValueChange={(value) => setDxImeCalls((calls) => [...calls, value])}
+            style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+          />
+          <Command.List style={{ marginTop: 8 }}>
+            <Command.Item>nihon</Command.Item>
+            <Command.Item>neko</Command.Item>
           </Command.List>
         </Command>
       </div>
