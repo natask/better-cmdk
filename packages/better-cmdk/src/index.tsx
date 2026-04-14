@@ -100,6 +100,11 @@ type CommandProps = Children &
     /** Whether Command.Loading content should be shown. */
     loading?: boolean
     /**
+     * Optional CSP nonce used by dialog style injection internals.
+     * Meaningful when using `Command.Dialog`.
+     */
+    cspNonce?: string
+    /**
      * Custom filter function for whether each command menu item should matches the given search query.
      * It should return a number between 0 and 1, with 1 being the best match and 0 being hidden entirely.
      * By default, uses the `command-score` library.
@@ -225,6 +230,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     filter,
     shouldFilter,
     loading,
+    cspNonce: _cspNonce,
     loop,
     disablePointerSelection = false,
     vimBindings = true,
@@ -1020,19 +1026,66 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
  * Renders the command menu in a Radix Dialog.
  */
 const Dialog = React.forwardRef<HTMLDivElement, DialogProps>((props, forwardedRef) => {
-  const { open, onOpenChange, overlayClassName, contentClassName, container, label, description, ...etc } = props
+  const { open, onOpenChange, overlayClassName, contentClassName, container, label, description, cspNonce, ...etc } = props
   const title = label ?? props['aria-label'] ?? ''
+  const previousNonceRef = React.useRef<string | undefined>()
+
+  if (cspNonce && typeof window !== 'undefined') {
+    const win = window as Window & { __webpack_nonce__?: string }
+    if (previousNonceRef.current === undefined) {
+      previousNonceRef.current = win.__webpack_nonce__
+    }
+    win.__webpack_nonce__ = cspNonce
+  }
+
+  useIsomorphicLayoutEffect(() => {
+    if (!cspNonce || typeof window === 'undefined') return
+    const win = window as Window & { __webpack_nonce__?: string }
+    const nonceMarker = document.createElement('style')
+    nonceMarker.setAttribute('nonce', cspNonce)
+    nonceMarker.setAttribute('data-cmdk-csp', '')
+    nonceMarker.textContent = '/* cmdk csp nonce */'
+    document.head.appendChild(nonceMarker)
+
+    const shouldTagStyle = (node: HTMLStyleElement) => {
+      const css = node.textContent ?? ''
+      return css.includes('data-scroll-locked') || css.includes('block-interactivity-')
+    }
+    const applyNonce = (node: HTMLStyleElement) => {
+      if (node.nonce || !shouldTagStyle(node)) return
+      node.setAttribute('nonce', cspNonce)
+    }
+
+    document.querySelectorAll('style').forEach((node) => applyNonce(node as HTMLStyleElement))
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (node instanceof HTMLStyleElement) {
+            applyNonce(node)
+          }
+        }
+      }
+    })
+    observer.observe(document.head, { childList: true, subtree: true })
+
+    return () => {
+      observer.disconnect()
+      nonceMarker.remove()
+      if (previousNonceRef.current === undefined) delete win.__webpack_nonce__
+      else win.__webpack_nonce__ = previousNonceRef.current
+    }
+  }, [cspNonce])
 
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal container={container}>
-        <RadixDialog.Overlay cmdk-overlay="" className={overlayClassName} />
-        <RadixDialog.Content aria-label={label} cmdk-dialog="" className={contentClassName}>
+        <RadixDialog.Overlay cmdk-overlay="" className={overlayClassName} nonce={cspNonce} />
+        <RadixDialog.Content aria-label={label} cmdk-dialog="" className={contentClassName} nonce={cspNonce}>
           <div style={visuallyHiddenStyle}>
             <RadixDialog.Title>{title}</RadixDialog.Title>
             {description ? <RadixDialog.Description>{description}</RadixDialog.Description> : null}
           </div>
-          <Command ref={forwardedRef} label={label} {...etc} />
+          <Command ref={forwardedRef} label={label} cspNonce={cspNonce} {...etc} />
         </RadixDialog.Content>
       </RadixDialog.Portal>
     </RadixDialog.Root>

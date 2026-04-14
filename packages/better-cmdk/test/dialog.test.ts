@@ -21,4 +21,15 @@ test.describe('dialog', async () => {
     await page.waitForLoadState('networkidle')
     expect(errors).toEqual([])
   })
+
+  test('dialog csp nonce is applied to injected style tags', async ({ page }) => {
+    await page.goto('/dialog')
+    await expect(page.locator(`[cmdk-dialog]`)).toHaveCount(1)
+    await page.waitForTimeout(50)
+    const nonceStyles = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('style')).filter((node) => (node as HTMLStyleElement).nonce === 'abc123')
+        .length,
+    )
+    expect(nonceStyles).toBeGreaterThan(0)
+  })
 })

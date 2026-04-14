@@ -113,9 +113,11 @@ export function App() {
 
       <div style={{ marginTop: 20 }}>
         <button onClick={() => setDialogOpen((open) => !open)}>{dialogOpen ? 'Close' : 'Open'} dialog</button>
+        <p style={{ margin: '8px 0', color: '#666', fontSize: 12 }}>Dialog uses `cspNonce="playground-nonce"`.</p>
         <Command.Dialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
+          cspNonce="playground-nonce"
           label="Dialog Command Menu"
           description="A dialog-wrapped command menu with hidden title and description."
         >
