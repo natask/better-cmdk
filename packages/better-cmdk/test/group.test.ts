@@ -48,4 +48,15 @@ test.describe('group', async () => {
     await restoreInput.fill('')
     await expect(visibleGroupHeadings).toHaveText(['A', 'B', 'C'])
   })
+
+  test('group-level filter overrides command filter for that group only', async ({ page }) => {
+    const input = page.locator(`[data-testid="group-filter-input"]`)
+    const demo = page.locator(`[data-testid="group-filter-demo"]`)
+
+    await input.fill('nonmatch')
+
+    await expect(demo.locator(`[cmdk-group][data-value="Always Match"]`)).toBeVisible()
+    await expect(demo.locator(`[cmdk-group][data-value="Default Match"]`)).not.toBeVisible()
+    await expect(demo.locator(`[cmdk-item]`)).toHaveCount(2)
+  })
 })

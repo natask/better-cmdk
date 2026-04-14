@@ -27,6 +27,7 @@ const perfDemoItems = Array.from({ length: 500 }, (_, i) => ({
   value: `perf-item-${i + 1}`,
   label: `Perf Item ${i + 1}`,
 }))
+const alwaysMatch = () => 1
 
 export function App() {
   const [value, setValue] = useState('')
@@ -36,6 +37,7 @@ export function App() {
   const [selectionSearch, setSelectionSearch] = useState('')
   const [scrollSearch, setScrollSearch] = useState('')
   const [perfSearch, setPerfSearch] = useState('')
+  const [groupFilterSearch, setGroupFilterSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const specialGroupValue = 'a.b:c#d"e'
 
@@ -196,6 +198,29 @@ export function App() {
                 {item.label}
               </Command.Item>
             ))}
+          </Command.List>
+        </Command>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>Per-group filter override</h2>
+        <Command label="Group Filter Demo" style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8 }}>
+          <Command.Input
+            value={groupFilterSearch}
+            onValueChange={setGroupFilterSearch}
+            placeholder='Type "nonmatch"...'
+            style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+          />
+          <Command.List style={{ marginTop: 8 }}>
+            <Command.Empty>No results.</Command.Empty>
+            <Command.Group heading="Always Match" filter={alwaysMatch}>
+              <Command.Item>Pinned One</Command.Item>
+              <Command.Item>Pinned Two</Command.Item>
+            </Command.Group>
+            <Command.Group heading="Default Match">
+              <Command.Item>Standard Alpha</Command.Item>
+              <Command.Item>Standard Beta</Command.Item>
+            </Command.Group>
           </Command.List>
         </Command>
       </div>

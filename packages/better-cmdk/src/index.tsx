@@ -67,6 +67,8 @@ type GroupProps = Children &
     heading?: React.ReactNode
     /** If no heading is provided, you must provide a value that is unique for this group. */
     value?: string
+    /** Optional scoring override for items within this group. */
+    filter?: CommandFilter
     /** Whether this group is forcibly rendered regardless of filtering. */
     forceMount?: boolean
   }
@@ -126,8 +128,8 @@ type CommandProps = Children &
 
 type Context = {
   value: (id: string, value: string, keywords?: string[]) => void
-  item: (id: string, groupId: string) => () => void
-  group: (id: string) => () => void
+  item: (id: string, groupId?: string) => () => void
+  group: (id: string, filter?: CommandFilter) => () => void
   filter: () => boolean
   label: string
   getDisablePointerSelection: () => boolean
@@ -153,6 +155,7 @@ type Store = {
 }
 type Group = {
   id: string
+  filter?: CommandFilter
   forceMount?: boolean
 }
 
@@ -201,6 +204,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   }))
   const allItems = useLazyRef<Set<string>>(() => new Set()) // [...itemIds]
   const allGroups = useLazyRef<Map<string, Set<string>>>(() => new Map()) // groupId → [...itemIds]
+  const groupFilters = useLazyRef<Map<string, CommandFilter | undefined>>(() => new Map()) // groupId → filter
+  const itemToGroup = useLazyRef<Map<string, string | undefined>>(() => new Map()) // itemId → groupId
   const groupsInitialOrder = useLazyRef<string[]>(() => []) // [...groupIds]
   const ids = useLazyRef<Map<string, { value: string; keywords?: string[] }>>(() => new Map()) // id → { value, keywords }
   const listeners = useLazyRef<Set<() => void>>(() => new Set()) // [...rerenders]
@@ -349,6 +354,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       // Track item lifecycle (mount, unmount)
       item: (id, groupId) => {
         allItems.current.add(id)
+        itemToGroup.current.set(id, groupId)
 
         // Track this item within the group
         if (groupId) {
@@ -376,6 +382,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         return () => {
           ids.current.delete(id)
           allItems.current.delete(id)
+          itemToGroup.current.delete(id)
           state.current.filtered.items.delete(id)
           const selectedItem = getSelectedItem()
 
@@ -392,10 +399,11 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
       },
       // Track group lifecycle (mount, unmount)
-      group: (id) => {
+      group: (id, filter) => {
         if (!allGroups.current.has(id)) {
           allGroups.current.set(id, new Set())
         }
+        groupFilters.current.set(id, filter)
         if (!groupsInitialOrder.current.includes(id)) {
           groupsInitialOrder.current.push(id)
         }
@@ -403,6 +411,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         return () => {
           ids.current.delete(id)
           allGroups.current.delete(id)
+          groupFilters.current.delete(id)
           const index = groupsInitialOrder.current.indexOf(id)
           if (index !== -1) groupsInitialOrder.current.splice(index, 1)
         }
@@ -422,8 +431,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     [],
   )
 
-  function score(value: string, keywords?: string[]) {
-    const filter = propsRef.current?.filter ?? defaultFilter
+  function score(value: string, keywords?: string[], groupFilter?: CommandFilter) {
+    const filter = groupFilter ?? propsRef.current?.filter ?? defaultFilter
     return value ? filter(value, state.current.search, keywords) : 0
   }
 
@@ -546,7 +555,9 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     for (const id of allItems.current) {
       const value = ids.current.get(id)?.value ?? ''
       const keywords = ids.current.get(id)?.keywords ?? []
-      const rank = score(value, keywords)
+      const groupId = itemToGroup.current.get(id)
+      const groupFilter = groupId ? groupFilters.current.get(groupId) : undefined
+      const rank = score(value, keywords, groupFilter)
       state.current.filtered.items.set(id, rank)
       if (rank > 0) itemCount++
     }
@@ -829,7 +840,7 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>((props, forwardedRef) =
  * Grouped items are always shown together.
  */
 const Group = React.forwardRef<HTMLDivElement, GroupProps>((props, forwardedRef) => {
-  const { heading, children, forceMount, id: groupId, ...etc } = props
+  const { heading, children, forceMount, filter: groupFilter, id: groupId, ...etc } = props
   const internalId = useId()
   const id = groupId ?? internalId
   const ref = React.useRef<HTMLDivElement>(null)
@@ -841,12 +852,12 @@ const Group = React.forwardRef<HTMLDivElement, GroupProps>((props, forwardedRef)
   )
 
   useLayoutEffect(() => {
-    return context.group(id)
-  }, [])
+    return context.group(id, groupFilter)
+  }, [id])
 
   useValue(id, ref, [props.value, props.heading, headingRef])
 
-  const contextValue = React.useMemo(() => ({ id, forceMount }), [forceMount])
+  const contextValue = React.useMemo(() => ({ id, forceMount, filter: groupFilter }), [id, forceMount, groupFilter])
 
   return (
     <Primitive.div

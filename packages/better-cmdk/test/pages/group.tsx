@@ -1,6 +1,8 @@
 import { Command } from 'cmdk'
 import * as React from 'react'
 
+const alwaysMatch = () => 1
+
 const Page = () => {
   const [search, setSearch] = React.useState('')
   const [forceMount, setForceMount] = React.useState(false)
@@ -53,6 +55,22 @@ const Page = () => {
             </Command.Group>
             <Command.Group heading="C">
               <Command.Item>Cherry</Command.Item>
+            </Command.Group>
+          </Command.List>
+        </Command>
+      </div>
+
+      <div data-testid="group-filter-demo">
+        <Command>
+          <Command.Input data-testid="group-filter-input" placeholder="Type nonmatch..." />
+          <Command.List>
+            <Command.Group heading="Always Match" filter={alwaysMatch}>
+              <Command.Item>Pinned One</Command.Item>
+              <Command.Item>Pinned Two</Command.Item>
+            </Command.Group>
+            <Command.Group heading="Default Match">
+              <Command.Item>Standard Alpha</Command.Item>
+              <Command.Item>Standard Beta</Command.Item>
             </Command.Group>
           </Command.List>
         </Command>
