@@ -1,0 +1,24 @@
+node_modules
+dist
+build
+.turbo
+.next
+coverage
+*.log
+.DS_Store
+.env
+.env.local
+playwright-report
+test-results
+*.tgz
+reference-projects/
+
+# Local scratch: notes, plans, reports, research — never commit
+scratch/
+
+# Agent tool state
+.claude/
+.context/
+
+# Vendored reference checkouts
+upstream-cmdk/
