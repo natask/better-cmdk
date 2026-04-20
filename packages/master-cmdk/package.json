@@ -1,5 +1,5 @@
 {
-  "name": "better-cmdk",
+  "name": "master-cmdk",
   "version": "0.0.0",
   "license": "MIT",
   "description": "A drop-in replacement for cmdk — same API, smarter matcher, bug fixes, plugin surface.",
@@ -51,7 +51,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/natask/better-cmdk.git",
-    "directory": "packages/better-cmdk"
+    "url": "git+https://github.com/natask/master-cmdk.git",
+    "directory": "packages/master-cmdk"
   }
 }
