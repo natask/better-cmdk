@@ -1,14 +1,19 @@
 {
   "name": "master-cmdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
-  "description": "A drop-in replacement for cmdk — same API, smarter matcher, bug fixes, plugin surface.",
+  "description": "A drop-in replacement for cmdk — same API, smarter matcher, bug fixes, and split pointer/keyboard selection.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -21,7 +26,10 @@
     "dev": "tsup src/index.tsx src/command-score.ts src/match.ts --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "../../node_modules/.bin/playwright test"
+    "test:e2e": "../../node_modules/.bin/playwright test",
+    "prepublishOnly": "pnpm run build",
+    "prepack": "pnpm run build",
+    "pack:latest": "pnpm pack && cp master-cmdk-$(node -p \"require('./package.json').version\").tgz master-cmdk-latest.tgz"
   },
   "peerDependencies": {
     "react": "^18.3.0 || ^19.0.0",
