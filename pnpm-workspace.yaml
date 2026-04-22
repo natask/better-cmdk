@@ -1,0 +1,4 @@
+packages:
+  - "packages/*"
+  - "packages/master-cmdk/test"
+  - "apps/*"

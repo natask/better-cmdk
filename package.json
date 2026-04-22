@@ -1,0 +1,32 @@
+{
+  "name": "master-cmdk-root",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "test:e2e": "pnpm -F master-cmdk test:e2e",
+    "typecheck": "turbo run typecheck",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "turbo run build && changeset publish",
+    "preinstall": "npx only-allow pnpm"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.9",
+    "@playwright/test": "^1.51.0",
+    "oxfmt": "^0.1.0",
+    "oxlint": "^0.15.0",
+    "tsup": "^8.3.5",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  }
+}

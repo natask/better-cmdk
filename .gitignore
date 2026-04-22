@@ -19,6 +19,3 @@ scratch/
 # Agent tool state
 .claude/
 .context/
-
-# Vendored reference checkouts
-upstream-cmdk/

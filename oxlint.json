@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "unicorn"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "pedantic": "off"
+  },
+  "rules": {
+    "no-console": "warn"
+  },
+  "ignorePatterns": [
+    "dist",
+    "build",
+    "node_modules",
+    ".turbo",
+    "upstream-cmdk"
+  ]
+}
