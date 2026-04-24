@@ -509,9 +509,10 @@ export function App() {
               ['11', 'inputId',           'dx-input-id'],
               ['12', 'defaultSearch',     'dx-default-search'],
               ['13', 'onEmpty',           'dx-on-empty'],
-              ['14', 'IME · synthetic',   'ime'],
-              ['15', 'Search matcher',    'search'],
-              ['16', 'Ingestion',         'ingestion'],
+              ['14', 'forceMount',        'force-mount-empty'],
+              ['15', 'IME · synthetic',   'ime'],
+              ['16', 'Search matcher',    'search'],
+              ['17', 'Ingestion',         'ingestion'],
             ].map(([n, label, slug]) => (
               <a key={slug} href={`#${slug}`} className="pg-side__link">
                 <span>{n}</span>
@@ -1247,10 +1248,35 @@ export function App() {
             />
           </Pane>
 
-          {/* 14 IME · synthetic */}
+          {/* 14 forceMount · empty state */}
+          <Pane
+            id="force-mount-empty"
+            num="14"
+            title="forceMount · visible items suppress Empty"
+            chip="filter"
+            desc={<>The input starts at <code>zzz</code>. The pinned row is forced visible, so <code>Command.Empty</code> must stay hidden.</>}
+          >
+            <Command label="forceMount empty-state demo" defaultSearch="zzz">
+              <CmdInput placeholder='pre-filled with "zzz"…' />
+              <Command.List>
+                <Command.Empty>no results · 0 matches</Command.Empty>
+                <Command.Item forceMount value="pinned-fallback">
+                  <span className="pg-item__icon">★</span>
+                  <span className="pg-item__label">Pinned fallback</span>
+                  <span className="pg-item__meta">forceMount</span>
+                </Command.Item>
+                <Command.Item value="settings">
+                  <span className="pg-item__icon">⚙</span>
+                  <span className="pg-item__label">settings</span>
+                </Command.Item>
+              </Command.List>
+            </Command>
+          </Pane>
+
+          {/* 15 IME · synthetic */}
           <Pane
             id="ime"
-            num="14"
+            num="15"
             title="IME · onValueChange during composition"
             chip="ime"
             desc={
@@ -1349,10 +1375,10 @@ export function App() {
             />
           </Pane>
 
-          {/* 15 search matcher */}
+          {/* 16 search matcher */}
           <Pane
             id="search"
-            num="15"
+            num="16"
             title="Tiered matcher · score per tier"
             chip="matcher"
             desc={
@@ -1378,10 +1404,10 @@ export function App() {
             <MatcherTable search={matcherSearch} />
           </Pane>
 
-          {/* 16 — ingestion roadmap */}
+          {/* 17 — ingestion roadmap */}
           <Pane
             id="ingestion"
-            num="16"
+            num="17"
             title="Ingestion · JSX today, array roadmap"
             chip="dx surface"
             desc={
