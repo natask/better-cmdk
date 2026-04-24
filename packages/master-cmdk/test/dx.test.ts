@@ -53,7 +53,15 @@ test.describe('dx props and ime behavior', async () => {
     await expect(scope.locator('[cmdk-item]')).toHaveCount(1)
   })
 
-  test('hidden label element is not rendered', async ({ page }) => {
-    await expect(page.locator('[cmdk-label]')).toHaveCount(0)
+  test('hidden label element is rendered and labels the input', async ({ page }) => {
+    const scope = page.getByTestId('default-search-scope')
+    const label = scope.locator('[cmdk-label]')
+    const input = page.getByTestId('default-search-input')
+
+    await expect(label).toHaveCount(1)
+    await expect(label).toHaveText('Default search demo')
+    const labelId = await label.getAttribute('id')
+    expect(labelId).toBeTruthy()
+    await expect(input).toHaveAttribute('aria-labelledby', labelId!)
   })
 })

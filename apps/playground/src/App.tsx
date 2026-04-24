@@ -1180,7 +1180,7 @@ export function App() {
             </label>
             <SxS
               oldTag="no inputId prop"
-              newTag="inputId prop"
+              newTag="inputId prop + cmdk-label"
               oldNode={<NAStub reason={<>upstream has no <code>inputId</code>; binding an external label to the input requires wrangling a ref + effect.</>} />}
               newNode={
                 <Command label="inputId demo">

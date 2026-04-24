@@ -227,6 +227,7 @@ type Context = {
   // Ids
   listId: string
   inputId: string
+  labelId: string
   // Refs
   listInnerRef: React.RefObject<HTMLDivElement | null>
 }
@@ -350,6 +351,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
 
   const listId = useId()
   const inputId = useId()
+  const labelId = `${inputId}-label`
 
   const listInnerRef = React.useRef<HTMLDivElement>(null)
   const hasMountedRef = React.useRef(false)
@@ -731,6 +733,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       },
       listId,
       inputId,
+      labelId,
       listInnerRef,
     }),
     [],
@@ -1125,6 +1128,9 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
       }}
     >
+      <label cmdk-label="" id={labelId} style={visuallyHiddenStyle}>
+        {context.label}
+      </label>
       {SlottableWithNestedChildren(props, (child) => (
         <StoreContext.Provider value={store}>
           <CommandContext.Provider value={context}>{child}</CommandContext.Provider>
@@ -1436,7 +1442,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
       role="combobox"
       aria-expanded={true}
       aria-controls={context.listId}
-      aria-label={ariaLabel ?? context.label}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabel ? undefined : context.labelId}
       aria-activedescendant={selectedItemId}
       id={inputId ?? id ?? context.inputId}
       type={type}
