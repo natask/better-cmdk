@@ -1356,7 +1356,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
   const {
     onValueChange,
     debounce = 0,
-    type = 'search',
+    type = 'text',
     inputId,
     id,
     onCompositionStart: onCompositionStartProp,

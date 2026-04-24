@@ -37,6 +37,10 @@ test.describe('dx props and ime behavior', async () => {
     await expect(scope.locator('[cmdk-item]')).toHaveText('beta')
   })
 
+  test('input defaults to text type for upstream compatibility', async ({ page }) => {
+    await expect(page.getByTestId('default-search-input')).toHaveAttribute('type', 'text')
+  })
+
   test('ime composition suppresses updates until compositionend', async ({ page }) => {
     const input = page.getByTestId('ime-input')
     const scope = page.getByTestId('ime-scope')
