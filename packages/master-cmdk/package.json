@@ -22,10 +22,10 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.tsx src/command-score.ts src/match.ts --clean",
+    "build": "pnpm -F master-cmdk-core build && tsup src/index.tsx src/command-score.ts src/match.ts --clean",
     "dev": "tsup src/index.tsx src/command-score.ts src/match.ts --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "typecheck": "pnpm -F master-cmdk-core build && tsc --noEmit",
+    "test": "pnpm -F master-cmdk-core build && vitest run",
     "test:e2e": "../../node_modules/.bin/playwright test",
     "prepublishOnly": "pnpm run build",
     "prepack": "pnpm run build",
@@ -39,7 +39,8 @@
     "@radix-ui/react-compose-refs": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-id": "^1.1.0",
-    "@radix-ui/react-primitive": "^2.0.2"
+    "@radix-ui/react-primitive": "^2.0.2",
+    "master-cmdk-core": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
