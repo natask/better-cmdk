@@ -60,6 +60,43 @@ const Page = () => {
         </Command>
       </div>
 
+      {/* upstream #264 / #375 — flat item order restore after clear */}
+      <div data-testid="item-restore-demo">
+        <Command>
+          <Command.Input data-testid="item-restore-input" placeholder="Type e, then clear..." />
+          <Command.List>
+            {[
+              'apple', 'banana', 'cherry', 'date', 'elderberry',
+              'fig', 'grape', 'honeydew', 'kiwi', 'lemon',
+            ].map((it) => (
+              <Command.Item key={it} value={it}>
+                {it}
+              </Command.Item>
+            ))}
+          </Command.List>
+        </Command>
+      </div>
+
+      {/* Source-order interleaving: items between groups must stay between groups on clear */}
+      <div data-testid="mixed-restore-demo">
+        <Command>
+          <Command.Input data-testid="mixed-restore-input" placeholder="Type c, then clear..." />
+          <Command.List>
+            <Command.Item value="standalone-top">top-standalone</Command.Item>
+            <Command.Group heading="G1">
+              <Command.Item value="g1-alpha">g1-alpha</Command.Item>
+              <Command.Item value="g1-charlie">g1-charlie</Command.Item>
+            </Command.Group>
+            <Command.Item value="standalone-mid">mid-standalone</Command.Item>
+            <Command.Group heading="G2">
+              <Command.Item value="g2-cherry">g2-cherry</Command.Item>
+              <Command.Item value="g2-zulu">g2-zulu</Command.Item>
+            </Command.Group>
+            <Command.Item value="standalone-bot">bot-standalone</Command.Item>
+          </Command.List>
+        </Command>
+      </div>
+
       <div data-testid="group-filter-demo">
         <Command>
           <Command.Input data-testid="group-filter-input" placeholder="Type nonmatch..." />

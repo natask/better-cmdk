@@ -2,7 +2,7 @@
 
 import * as RadixDialog from '@radix-ui/react-dialog'
 import * as React from 'react'
-import { betterMatch } from './match'
+import { commandScore } from 'master-cmdk-core'
 import { createAbortableDebounce } from './async'
 import { Primitive } from '@radix-ui/react-primitive'
 import { useId } from '@radix-ui/react-id'
@@ -266,7 +266,7 @@ const ITEM_SELECTOR = `[cmdk-item=""]`
 const VALID_ITEM_SELECTOR = `${ITEM_SELECTOR}:not([aria-disabled="true"])`
 const SELECT_EVENT = `cmdk-item-select`
 const VALUE_ATTR = `data-value`
-const defaultFilter: CommandFilter = (value, search, keywords) => betterMatch(value, search, keywords)
+const defaultFilter: CommandFilter = (value, search, keywords) => commandScore(value, search, keywords)
 const visuallyHiddenStyle: React.CSSProperties = {
   position: 'absolute',
   width: 1,
@@ -316,6 +316,10 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   const itemToGroup = useLazyRef<Map<string, string | undefined>>(() => new Map()) // itemId → groupId
   const itemToMode = useLazyRef<Map<string, string | undefined>>(() => new Map()) // itemId → modeId
   const groupsInitialOrder = useLazyRef<string[]>(() => []) // [...groupIds]
+  // Source-order interleaving of top-level list children (groups + ungrouped items).
+  // Needed so restoreSourceOrder() can put ungrouped items back between groups
+  // on search clear, not just at the tail of the list.
+  const listInitialOrder = useLazyRef<string[]>(() => []) // [...topLevelIds]
   const ids = useLazyRef<Map<string, { value: string; keywords?: string[] }>>(() => new Map()) // id → { value, keywords }
   const listeners = useLazyRef<Set<() => void>>(() => new Set()) // [...rerenders]
   const valueListeners = useLazyRef<Map<string | undefined, Set<() => void>>>(() => new Map()) // value → [...rerenders]
@@ -476,10 +480,11 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
 
         if (key === 'search') {
-          // Filter synchronously before emitting back to children
+          // Query changes mean the user is still searching: re-rank and snap
+          // selection to the top visible result for the current query.
           filterItems()
           sort()
-          schedule(1, selectFirstItemOnSearch)
+          schedule(1, selectFirstItem)
         } else if (key === 'mode') {
           filterItems()
           sort()
@@ -557,7 +562,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     if (!state.current.search) return
     filterItems()
     sort()
-    selectFirstItemOnSearch()
+    selectFirstItem()
     store.emit()
   }, [filter, shouldFilter, activeMode])
 
@@ -610,6 +615,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           } else {
             allGroups.current.get(groupId).add(id)
           }
+        } else if (!listInitialOrder.current.includes(id)) {
+          listInitialOrder.current.push(id)
         }
 
         // Batch this, multiple items can mount in one pass
@@ -632,6 +639,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           itemToGroup.current.delete(id)
           itemToMode.current.delete(id)
           state.current.filtered.items.delete(id)
+          const topIdx = listInitialOrder.current.indexOf(id)
+          if (topIdx !== -1) listInitialOrder.current.splice(topIdx, 1)
           const selectedItem = getSelectedItem()
 
           // Batch this, multiple items could be removed in one pass
@@ -656,6 +665,9 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         if (!groupsInitialOrder.current.includes(id)) {
           groupsInitialOrder.current.push(id)
         }
+        if (!listInitialOrder.current.includes(id)) {
+          listInitialOrder.current.push(id)
+        }
 
         return () => {
           ids.current.delete(id)
@@ -664,6 +676,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           groupToMode.current.delete(id)
           const index = groupsInitialOrder.current.indexOf(id)
           if (index !== -1) groupsInitialOrder.current.splice(index, 1)
+          const topIdx = listInitialOrder.current.indexOf(id)
+          if (topIdx !== -1) listInitialOrder.current.splice(topIdx, 1)
         }
       },
       // Track mode lifecycle (mount, unmount)
@@ -776,6 +790,40 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     return modeId === active
   }
 
+  /**
+   * Snaps group and item DOM order back to source-registration order.
+   * Fixes upstream cmdk #264 / #375: after a search clears, items that
+   * re-mount land wherever React's reconciler inserts them relative to the
+   * prior score-sorted DOM. We iterate the registration-ordered refs and
+   * re-append each node into its proper parent. `listInitialOrder` preserves
+   * the interleaving of ungrouped items with groups at the list top level.
+   */
+  function restoreSourceOrder() {
+    const listSizer = listInnerRef.current
+    if (!listSizer) return
+    for (const topId of listInitialOrder.current) {
+      if (!topId) continue
+      const node = listSizer.querySelector<HTMLElement>(`#${CSS.escape(topId)}`)
+      if (!node || node.parentElement !== listSizer) continue
+      listSizer.appendChild(node)
+    }
+    for (const groupId of groupsInitialOrder.current) {
+      if (!groupId) continue
+      const items = allGroups.current.get(groupId)
+      if (!items || items.size === 0) continue
+      const groupItems = listSizer.querySelector<HTMLElement>(
+        `#${CSS.escape(groupId)} ${GROUP_ITEMS_SELECTOR}`,
+      )
+      if (!groupItems) continue
+      for (const itemId of items) {
+        if (!itemId) continue
+        const item = listSizer.querySelector<HTMLElement>(`#${CSS.escape(itemId)}`)
+        if (!item || item.parentElement !== groupItems) continue
+        groupItems.appendChild(item)
+      }
+    }
+  }
+
   /** Sorts items by score, and groups by highest item score. */
   function sort() {
     // Explicitly false, because true | undefined is the default
@@ -784,13 +832,11 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     }
 
     if (!state.current.search) {
-      if (state.current.filtered.groups.size === 0) {
-        return
-      }
-      for (const groupId of groupsInitialOrder.current) {
-        const element = listInnerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(groupId)}`)
-        element?.parentElement?.appendChild(element)
-      }
+      // Restore runs twice: once synchronously for already-mounted nodes, then
+      // again after React re-mounts items that were hidden during search so
+      // their remount insertion points don't leave the DOM scrambled.
+      restoreSourceOrder()
+      schedule(9, restoreSourceOrder)
       state.current.filtered.groups = new Set()
       return
     }
@@ -842,6 +888,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     groups
       .sort((a, b) => b[1] - a[1])
       .forEach((group) => {
+        if (!group[0]) return
         const element = listInnerRef.current?.querySelector(`#${CSS.escape(group[0])}`)
         element?.parentElement.appendChild(element)
       })
@@ -850,13 +897,6 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   function selectFirstItem() {
     const item = getValidItems().find((item) => item.getAttribute('aria-disabled') !== 'true')
     store.setState('value', getItemValue(item))
-  }
-
-  function selectFirstItemOnSearch() {
-    if (state.current.value && isSelectedValueVisible()) {
-      return
-    }
-    selectFirstItem()
   }
 
   function isSelectedValueVisible() {
@@ -1244,7 +1284,7 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>((props, forwardedRef) =
 const Group = React.forwardRef<HTMLDivElement, GroupProps>((props, forwardedRef) => {
   const { heading, children, forceMount, filter: groupFilter, id: groupId, ...etc } = props
   const internalId = useId()
-  const id = groupId ?? internalId
+  const id = groupId || internalId
   const ref = React.useRef<HTMLDivElement>(null)
   const headingRef = React.useRef<HTMLDivElement>(null)
   const headingId = useId()
@@ -1581,7 +1621,7 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
 
   // Re-window on selection/search/mode changes without tearing down the
   // listener — avoids the reflow storm from resetting display on every row.
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     syncRef.current?.(true)
   }, [selectedItemId, search, mode])
 
@@ -1730,8 +1770,6 @@ const pkg = Object.assign(Command, {
 export { useCmdk as useCommandState }
 export { pkg as Command }
 export { defaultFilter }
-export { betterMatch } from './match'
-export { commandScore } from './command-score'
 
 export { Command as CommandRoot }
 export { List as CommandList }

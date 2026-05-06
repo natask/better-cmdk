@@ -386,7 +386,8 @@ body::after {
   margin-right: 10px;
   user-select: none;
 }
-[cmdk-input] {
+[cmdk-input],
+.pg-matcher-input {
   flex: 1;
   appearance: none;
   background: transparent;
@@ -398,9 +399,12 @@ body::after {
   padding: 14px 0;
   letter-spacing: 0.005em;
   caret-color: var(--amber);
+  min-width: 0;
 }
-[cmdk-input]::placeholder { color: var(--text-mute); }
-[cmdk-input]::-webkit-search-cancel-button { display: none; }
+[cmdk-input]::placeholder,
+.pg-matcher-input::placeholder { color: var(--text-mute); }
+[cmdk-input]::-webkit-search-cancel-button,
+.pg-matcher-input::-webkit-search-cancel-button { display: none; }
 
 .pg-input__kbd {
   display: flex;
@@ -804,20 +808,63 @@ kbd.hot, .kbd.hot {
   text-transform: uppercase;
 }
 
+/* matcher shell — wraps the live input + score table in a [cmdk-root]-style card */
+.pg-matcher-shell {
+  position: relative;
+  background: var(--elev-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.02) inset,
+    0 20px 40px -24px rgba(0,0,0,0.6);
+  transition: border-color 180ms var(--ease);
+}
+.pg-matcher-shell:focus-within {
+  border-color: var(--border-hi);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.02) inset,
+    0 0 0 3px rgba(244, 185, 66, 0.05),
+    0 20px 50px -24px rgba(0,0,0,0.7);
+}
+.pg-matcher-shell .pg-input { border-bottom: 1px solid var(--border); }
+
 /* matcher table */
 .pg-matcher {
   display: grid;
-  margin-top: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
   font-family: var(--font-mono);
   font-size: 12px;
+}
+.pg-matcher-shell .pg-matcher {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+}
+.pg-query-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.pg-query-chip {
+  border: 1px solid var(--border);
+  background: var(--elev-2);
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pg-query-chip:hover {
+  color: var(--text);
+  border-color: var(--amber);
 }
 .pg-matcher__head,
 .pg-matcher__row {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 0.8fr 3fr;
+  grid-template-columns: 2fr 0.8fr 0.8fr 0.7fr 2.6fr;
   gap: 12px;
   padding: 8px 14px;
   align-items: center;

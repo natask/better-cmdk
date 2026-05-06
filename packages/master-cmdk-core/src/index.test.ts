@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { betterMatch, createCommandEngine } from './index'
+import { commandScore, createCommandEngine } from './index'
 
 describe('createCommandEngine', () => {
   test('registers items and filters with the default matcher', () => {
@@ -114,9 +114,23 @@ describe('createCommandEngine', () => {
   })
 })
 
-describe('betterMatch', () => {
+describe('commandScore', () => {
   test('matches diacritics and acronyms', () => {
-    expect(betterMatch('Café', 'cafe')).toBeGreaterThan(0)
-    expect(betterMatch('GitHub', 'gh')).toBeGreaterThanOrEqual(0.7)
+    expect(commandScore('Café', 'cafe')).toBeGreaterThan(0)
+    expect(commandScore('GitHub', 'gh')).toBeGreaterThanOrEqual(0.7)
+  })
+
+  test('matches typo-tolerant tokens inside longer text entries', () => {
+    expect(commandScore('Search notes by title and body text', 'serach')).toBeGreaterThan(0)
+    expect(commandScore('Quarterly planning notes include renewal strategy', 'renwel strat')).toBeGreaterThan(0)
+  })
+
+  test('matches compact fuzzy subsequences inside words', () => {
+    expect(commandScore('Create Linear issue from selected text', 'lnr')).toBeGreaterThan(0.7)
+    expect(commandScore('Open browser tab', 'brws')).toBeGreaterThan(0.7)
+  })
+
+  test('keeps stronger literal matches ahead of typo matches', () => {
+    expect(commandScore('Search notes', 'search')).toBeGreaterThan(commandScore('Research archive', 'serach'))
   })
 })

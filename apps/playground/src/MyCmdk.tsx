@@ -82,7 +82,7 @@ const useCmd = () => {
 //
 // Start with a substring check (case-insensitive). Once everything
 // else works, come back and upgrade this to a real fuzzy score
-// (see packages/master-cmdk/src/command-score.ts for ideas).
+// The production scorer lives in master-cmdk-core.
 //
 // Contract:
 //   - empty search ⇒ return 1 (everything passes)

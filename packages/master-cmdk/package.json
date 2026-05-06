@@ -22,8 +22,8 @@
     }
   },
   "scripts": {
-    "build": "pnpm -F master-cmdk-core build && tsup src/index.tsx src/command-score.ts src/match.ts --clean",
-    "dev": "tsup src/index.tsx src/command-score.ts src/match.ts --watch",
+    "build": "pnpm -F master-cmdk-core build && tsup src/index.tsx --clean",
+    "dev": "tsup src/index.tsx --watch",
     "typecheck": "pnpm -F master-cmdk-core build && tsc --noEmit",
     "test": "pnpm -F master-cmdk-core build && vitest run",
     "test:e2e": "../../node_modules/.bin/playwright test",

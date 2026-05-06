@@ -1,0 +1,61 @@
+{
+  "name": "master-cmdk-semantic",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Client-side semantic scoring helpers for master-cmdk.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.mjs",
+      "require": "./dist/vite.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup --clean",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm run build",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {
+    "master-cmdk-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.8"
+  },
+  "sideEffects": false,
+  "keywords": [
+    "cmdk",
+    "command",
+    "palette",
+    "search",
+    "semantic",
+    "vectors"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/natask/master-cmdk.git",
+    "directory": "packages/master-cmdk-semantic"
+  }
+}

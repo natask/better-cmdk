@@ -25,7 +25,7 @@ import { Command } from 'master-cmdk'
 
 ## What's different from `cmdk`
 
-- **Diacritic-folded matcher by default** — `cafe` matches `Café` out of the box (upstream: exact bytes only).
+- **Better default matcher** — exact, prefix, word-prefix, acronym, substring, compact fuzzy (`lnr` → `Linear`), typo-tolerant tokens (`serach` → `Search`), and diacritic folding (`cafe` → `Café`).
 - **IME-safe input** — `onValueChange` suppressed during `compositionstart` / `compositionend` windows.
 - **Stable selection** — keyboard selection preserved across filter changes when the value still matches.
 - **Stable group order** — clearing the search restores source order; upstream drifts based on last score.

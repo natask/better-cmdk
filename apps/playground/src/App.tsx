@@ -1,6 +1,8 @@
 import { Component, forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Command, betterMatch } from 'master-cmdk'
+import { Command } from 'master-cmdk'
+import { createSemanticCommandScore } from 'master-cmdk-semantic'
+import type { SemanticCommandScore } from 'master-cmdk-semantic'
 import { Command as OldCommand } from 'cmdk'
 
 // --- data ---------------------------------------------------------------
@@ -23,6 +25,10 @@ const selectionDemoItems = [
   { value: 'foxtrot', label: 'Foxtrot' },
   { value: 'golf',    label: 'Golf'    },
   { value: 'hotel',   label: 'Hotel'   },
+]
+const sortRestoreDemoItems = [
+  'apple', 'banana', 'cherry', 'date', 'elderberry',
+  'fig', 'grape', 'honeydew', 'kiwi', 'lemon',
 ]
 const scrollDemoItems = Array.from({ length: 100 }, (_, i) => ({ value: `item-${i + 1}`,      label: `Item ${i + 1}`      }))
 const PERF_SIZES = [5_000, 50_000, 500_000] as const
@@ -62,12 +68,36 @@ function buildPerfItemsAsync(
   }
 }
 const asyncDemoItems  = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon']
-const ingestionRows = [
-  { value: 'open-repo', label: 'Open Repository' },
-  { value: 'deploy', label: 'Deploy' },
-  { value: 'run-tests', label: 'Run Tests' },
-  { value: 'toggle-theme', label: 'Toggle Theme' },
+
+const modeCommandItems = [
+  {value: 'deploy', label: 'Deploy'}, 
+  {value: 'open-repo', label: 'Open Repository'}, 
+  {value: 'theme-dark', label: 'Theme: Dark'},
+  {value: 'restart', label: 'Restrt Server'},
 ]
+
+const modeFileItems = [
+  'src/App.tsx',
+  'src/main.tsx',
+  'packages/master-cmdk/src/index.tsx', 
+  'packages/master-cmdk/test/pages/modes.tsx', 
+  'apps/playground/src/main.tsx',
+]
+
+// Path-aware ranking — basename-first, dir fallback. Diverges visibly from
+// command-score on e.g. "index" (basenames beat path substrings).
+const filesFilter = (value: string, search: string) => {
+  if (!search) return 1
+  const v = value.toLowerCase()
+  const q = search.toLowerCase()
+  const base = v.split('/').pop() ?? v
+  if (base === q) return 1
+  if (base.startsWith(q)) return 0.9
+  if (base.includes(q)) return 0.7
+  if (v.includes(q)) return 0.5
+  return 0
+}
+
 const alwaysMatch = () => 1
 
 // --- small pieces -------------------------------------------------------
@@ -245,6 +275,16 @@ function PerfMountTimer({ onMount, children }: { onMount: (ms: number) => void; 
 // and the nativeEvent.isComposing branches in master-cmdk's Input are exercised;
 // upstream cmdk sees the same events but only suppresses via its own composition
 // handlers, so it still fires onValueChange per update (the behavior we demo).
+// Clears leftover text (manual typing, prior playback, or an in-flight IME
+// composition) so a fresh playback isn't contaminated by earlier state. Blurs
+// to also drop any OS-level IME buffer the input might be holding.
+function resetInput(input: HTMLInputElement) {
+  const desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
+  desc?.set?.call(input, '')
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  input.blur()
+}
+
 function playComposition(input: HTMLInputElement, updates: string[], final: string) {
   const setNativeValue = (el: HTMLInputElement, val: string) => {
     const desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
@@ -270,15 +310,108 @@ function playComposition(input: HTMLInputElement, updates: string[], final: stri
 }
 
 const MATCHER_SAMPLES = [
-  { label: 'GitHub',            note: 'exact / prefix / acronym' },
-  { label: 'Git Hub',           note: 'word-prefix for "hub"' },
-  { label: 'NewFileDialog',     note: 'camelCase word split' },
-  { label: 'open-repo',         note: 'kebab word split' },
-  { label: 'Café',              note: 'diacritic fold to "cafe"' },
-  { label: 'ሰላም · hello',       note: 'leading non-Latin, Latin fuzzy from alias' },
-  { label: 'Settings',          note: 'prefix for "se" / "set"' },
-  { label: 'Debug',             note: 'fuzzy fallback' },
+  {
+    value: 'cmd-issue',
+    label: 'Create Linear issue',
+    note: 'vector hit for bug/ticket intent',
+  },
+  {
+    value: 'cmd-prs',
+    label: 'Open GitHub pull requests',
+    note: 'vector hit for code review intent',
+  },
+  {
+    value: 'cmd-deploy',
+    label: 'Deploy production',
+    note: 'vector hit for ship/publish intent',
+  },
+  {
+    value: 'cmd-docs',
+    label: 'Search documentation',
+    note: 'vector hit for docs/help intent',
+  },
+  {
+    value: 'cmd-theme',
+    label: 'Toggle dark mode',
+    note: 'lexical + vector hit for theme intent',
+  },
+  {
+    value: 'cmd-debug',
+    label: 'Explain error with AI',
+    note: 'vector hit for failure/debug intent',
+  },
+  {
+    value: 'cmd-cafe',
+    label: 'Open Café menu',
+    note: 'diacritic folding + vector hit for coffee intent',
+  },
 ]
+
+const MATCHER_QUERY_EXAMPLES = ['ship app', 'report bug', 'fix crash', 'publish site', 'make ticket', 'review code', 'why failed']
+
+const MATCHER_VECTORS = {
+  'cmd-deploy': [1, 0, 0, 0, 0, 0, 0],
+  'cmd-issue': [0, 1, 0, 0, 0, 0, 0],
+  'cmd-prs': [0, 0, 1, 0, 0, 0, 0],
+  'cmd-docs': [0, 0, 0, 1, 0, 0, 0],
+  'cmd-theme': [0, 0, 0, 0, 1, 0, 0],
+  'cmd-debug': [0, 0, 0, 0, 0, 1, 0],
+  'cmd-cafe': [0, 0, 0, 0, 0, 0, 1],
+} satisfies Record<string, number[]>
+
+const MATCHER_QUERY_TERMS = {
+  deploy: [1, 0, 0, 0, 0, 0, 0],
+  ship: [1, 0, 0, 0, 0, 0, 0],
+  publish: [1, 0, 0, 0, 0, 0, 0],
+  release: [1, 0, 0, 0, 0, 0, 0],
+  live: [1, 0, 0, 0, 0, 0, 0],
+  site: [1, 0, 0, 0, 0, 0, 0],
+  app: [1, 0, 0, 0, 0, 0, 0],
+  issue: [0, 1, 0, 0, 0, 0, 0],
+  bug: [0, 1, 0, 0, 0, 0, 0],
+  ticket: [0, 1, 0, 0, 0, 0, 0],
+  report: [0, 1, 0, 0, 0, 0, 0],
+  linear: [0, 1, 0, 0, 0, 0, 0],
+  review: [0, 0, 1, 0, 0, 0, 0],
+  code: [0, 0, 1, 0, 0, 0, 0],
+  pull: [0, 0, 1, 0, 0, 0, 0],
+  pr: [0, 0, 1, 0, 0, 0, 0],
+  docs: [0, 0, 0, 1, 0, 0, 0],
+  documentation: [0, 0, 0, 1, 0, 0, 0],
+  help: [0, 0, 0, 1, 0, 0, 0],
+  api: [0, 0, 0, 1, 0, 0, 0],
+  dark: [0, 0, 0, 0, 1, 0, 0],
+  theme: [0, 0, 0, 0, 1, 0, 0],
+  appearance: [0, 0, 0, 0, 1, 0, 0],
+  failed: [0, 0, 0, 0, 0, 1, 0],
+  failure: [0, 0, 0, 0, 0, 1, 0],
+  crash: [0, 0, 0, 0, 0, 1, 0],
+  error: [0, 0, 0, 0, 0, 1, 0],
+  debug: [0, 0, 0, 0, 0, 1, 0],
+  why: [0, 0, 0, 0, 0, 1, 0],
+  cafe: [0, 0, 0, 0, 0, 0, 1],
+  coffee: [0, 0, 0, 0, 0, 0, 1],
+} satisfies Record<string, number[]>
+
+function embedMatcherQuery(query: string): number[] {
+  const vector = new Array(7).fill(0)
+  const terms = query
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+
+  for (const term of terms) {
+    const termVector = MATCHER_QUERY_TERMS[term as keyof typeof MATCHER_QUERY_TERMS]
+    if (!termVector) continue
+    for (let index = 0; index < vector.length; index += 1) {
+      vector[index] += termVector[index]
+    }
+  }
+
+  return vector
+}
 
 function tierLabel(score: number): string {
   if (score === 0) return '—'
@@ -290,17 +423,31 @@ function tierLabel(score: number): string {
   return 'fuzzy'
 }
 
-function MatcherTable({ search }: { search: string }) {
+function MatcherTable({
+  search,
+  semantic,
+  semanticVersion,
+}: {
+  search: string
+  semantic: SemanticCommandScore
+  semanticVersion: number
+}) {
   const rows = useMemo(() => {
-    return MATCHER_SAMPLES.map((s) => ({
-      ...s,
-      score: search ? betterMatch(s.label, search) : 0,
-    })).sort((a, b) => b.score - a.score)
-  }, [search])
+    return MATCHER_SAMPLES.map((s) => {
+      const labelScore = search ? semantic.filter(s.label, search) : 0
+      const vectorScore = search ? semantic.semanticScore(s.value, search) : 0
+      return {
+        ...s,
+        score: search ? semantic.filter(s.value, search, [s.label]) : 0,
+        source: vectorScore > labelScore ? 'vector' : labelScore > 0 ? 'label' : '—',
+      }
+    }).sort((a, b) => b.score - a.score)
+  }, [search, semantic, semanticVersion])
   return (
     <div className="pg-matcher">
       <div className="pg-matcher__head">
-        <span>haystack</span>
+        <span>command</span>
+        <span>source</span>
         <span>tier</span>
         <span>score</span>
         <span>why</span>
@@ -308,6 +455,7 @@ function MatcherTable({ search }: { search: string }) {
       {rows.map((r) => (
         <div className="pg-matcher__row" key={r.label} data-score={r.score > 0 ? 'hit' : 'miss'}>
           <span>{r.label}</span>
+          <span>{r.source}</span>
           <span>{tierLabel(r.score)}</span>
           <span>{r.score.toFixed(2)}</span>
           <span style={{ color: 'var(--text-mute)' }}>{r.note}</span>
@@ -352,6 +500,7 @@ export function App() {
   const [accentSearch, setAccentSearch] = useState('')
   const [groupSearch, setGroupSearch] = useState('')
   const [groupOrderSearch, setGroupOrderSearch] = useState('')
+  const [groupOrderSelected, setGroupOrderSelected] = useState(sortRestoreDemoItems[0])
   const [scrollSearch, setScrollSearch] = useState('')
   const [perfSearch, setPerfSearch] = useState('')
   const [perfNewOn, setPerfNewOn] = useState(false)
@@ -372,15 +521,35 @@ export function App() {
   const [imeOldCalls, setImeOldCalls] = useState<string[]>([])
   const [imeNewCalls, setImeNewCalls] = useState<string[]>([])
   const [matcherSearch, setMatcherSearch] = useState('')
-  const [ingestionSearch, setIngestionSearch] = useState('')
+  const [semanticVersion, setSemanticVersion] = useState(0)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const asyncRequestId = useRef(0)
+  const asyncRequestId = useRef(0);
+  const [mode, setMode] = useState('commands')
+  const [filesLoading, setFilesLoading] = useState(false)
+  const [modeSearch, setModeSearch] = useState('')
   const specialGroupValue = 'a.b:c#d"e'
   const scrollOldRef = useRef<HTMLInputElement>(null)
   const scrollNewRef = useRef<HTMLInputElement>(null)
   const imeOldRef = useRef<HTMLInputElement>(null)
   const imeNewRef = useRef<HTMLInputElement>(null)
   const scrollCounter = useScrollIntoViewCounter()
+  const semanticMatcher = useMemo(() => {
+    return createSemanticCommandScore({
+      vectors: MATCHER_VECTORS,
+      embedQuery: (query, signal) => signal.aborted ? [] : embedMatcherQuery(query),
+    })
+  }, [])
+  const matcherFilter = useMemo(() => {
+    return (value: string, search: string, keywords?: string[]) => semanticMatcher.filter(value, search, keywords)
+  }, [semanticMatcher, semanticVersion])
+
+  useEffect(() => {
+    return semanticMatcher.subscribe(() => setSemanticVersion((version) => version + 1))
+  }, [semanticMatcher])
+
+  useEffect(() => {
+    void semanticMatcher.setSearch(matcherSearch)
+  }, [semanticMatcher, matcherSearch])
 
   // Build the perf list asynchronously, in 5k-item slices, when either panel
   // is armed or the size selector changes. Cancels any in-flight build on
@@ -496,22 +665,22 @@ export function App() {
           <div className="pg-side__label">Demos ─────────</div>
           <nav className="pg-side__list">
             {[
-              ['01', 'Command menu',      'menu'],
-              ['02', 'Pointer vs keyboard', 'pointer-keyboard'],
-              ['03', 'Diacritic folding', 'diacritic'],
-              ['04', 'Dialog',            'dialog'],
-              ['05', 'Group · special',   'group-special'],
-              ['06', 'Group order',       'group-order'],
-              ['07', 'Scroll counters',   'scroll'],
-              ['08', '500k perf',         'perf'],
-              ['09', 'Group filter',      'group-filter'],
-              ['10', 'Async',             'async'],
-              ['11', 'inputId',           'dx-input-id'],
-              ['12', 'defaultSearch',     'dx-default-search'],
-              ['13', 'onEmpty',           'dx-on-empty'],
-              ['14', 'IME · synthetic',   'ime'],
-              ['15', 'Search matcher',    'search'],
-              ['16', 'Ingestion',         'ingestion'],
+              ['01', 'Search stack',      'search'],
+              ['02', 'Command menu',      'menu'],
+              ['03', 'Pointer vs keyboard', 'pointer-keyboard'],
+              ['04', 'Diacritic folding', 'diacritic'],
+              ['05', 'Dialog',            'dialog'],
+              ['06', 'Group · special',   'group-special'],
+              ['07', 'Sort restore',      'group-order'],
+              ['08', 'Scroll counters',   'scroll'],
+              ['09', '500k perf',         'perf'],
+              ['10', 'Group filter',      'group-filter'],
+              ['11', 'Async',             'async'],
+              ['12', 'inputId',           'dx-input-id'],
+              ['13', 'defaultSearch',     'dx-default-search'],
+              ['14', 'onEmpty',           'dx-on-empty'],
+              ['15', 'IME · synthetic',   'ime'],
+              ['16', 'Modes',             'modes']
             ].map(([n, label, slug]) => (
               <a key={slug} href={`#${slug}`} className="pg-side__link">
                 <span>{n}</span>
@@ -523,10 +692,68 @@ export function App() {
 
         {/* --- main --- */}
         <main className="pg-main">
-          {/* 01 */}
+          {/* 01 search stack */}
+          <Pane
+            id="search"
+            num="01"
+            title="Search stack · default filter"
+            chip="search"
+            desc={
+              <>
+                The first demo is the bottleneck: meaningful command search. Type <code>report bug</code>,{' '}
+                <code>ship app</code>, <code>review code</code>, <code>find docs</code>, <code>dark mode</code>,{' '}
+                <code>cafe</code>, or <code>lnr</code>. Opaque command values are scored by lexical
+                the default text matcher plus a client vector score map.
+              </>
+            }
+            foot={
+              <>
+                <span><b style={{ color: 'var(--text)' }}>Shape:</b> command vectors are available before runtime; query embedding updates the score map, and the cmdk filter remains <code>(value, search, keywords) =&gt; number</code>.</span>
+              </>
+            }
+          >
+            <div className="pg-matcher-shell">
+              <Command label="Semantic command search" filter={matcherFilter}>
+                <CmdInput
+                  value={matcherSearch}
+                  onValueChange={setMatcherSearch}
+                  placeholder='try "report bug", "ship app", "review code", "dark mode", "cafe"…'
+                  type="search"
+                  autoComplete="off"
+                  spellCheck={false}
+                  hint={<Kbd>vector</Kbd>}
+                />
+                <Command.List>
+                  <Command.Empty>no results · 0 matches</Command.Empty>
+                  {MATCHER_SAMPLES.map((item) => (
+                    <Command.Item key={item.value} value={item.value} keywords={[item.label]}>
+                      <span className="pg-item__icon">◆</span>
+                      <span className="pg-item__label">{item.label}</span>
+                      <span className="pg-item__meta">{item.note}</span>
+                    </Command.Item>
+                  ))}
+                </Command.List>
+              </Command>
+              <div className="pg-query-examples">
+                {MATCHER_QUERY_EXAMPLES.map((query) => (
+                  <button
+                    key={query}
+                    type="button"
+                    className="pg-query-chip"
+                    onClick={() => setMatcherSearch(query)}
+                  >
+                    {query}
+                  </button>
+                ))}
+              </div>
+              <MatcherTable search={matcherSearch} semantic={semanticMatcher} semanticVersion={semanticVersion} />
+            </div>
+          </Pane>
+
+          {/* 02 */}
           <Pane
             id="menu"
-            num="01"
+            num="02"
             title="Command menu"
             chip="basic"
             desc={<>Type to filter. Keywords boost matches: try <code>git</code>, <code>create</code>, or <code>coffee</code>.</>}
@@ -558,7 +785,7 @@ export function App() {
           {/* 02 — old vs new pointer/keyboard behavior (cmdk#49) */}
           <Pane
             id="pointer-keyboard"
-            num="02"
+            num="03"
             title="Pointer vs keyboard · three modes"
             chip="pointerBehavior"
             desc={
@@ -648,7 +875,7 @@ export function App() {
           {/* 03 */}
           <Pane
             id="diacritic"
-            num="03"
+            num="04"
             title="Diacritic folding"
             chip="matcher"
             desc={<>Type <code>cafe</code>, match <code>Café</code>. Unicode NFD + combining-mark stripping, by default.</>}
@@ -691,7 +918,7 @@ export function App() {
           {/* 03 dialog */}
           <Pane
             id="dialog"
-            num="04"
+            num="05"
             title="Dialog · Radix-powered"
             chip="cspNonce"
             desc={<>Portaled overlay, focus trap, CSP nonce forwarded to Radix. Global <Kbd hot>⌘</Kbd><Kbd hot>K</Kbd> binding also toggles it.</>}
@@ -730,16 +957,16 @@ export function App() {
           {/* 04 */}
           <Pane
             id="group-special"
-            num="05"
+            num="06"
             title="Group value · special characters"
             chip="grouping"
-            desc={<>Group carries <code>value={'"a.b:c#d\\"e"'}</code>. Try <code>needle</code>.</>}
+            desc={<>Source order lists <code>Special characters</code> first, then <code>General</code>. Type <code>needle</code>: General scores higher and should move to top. Upstream fails to re-sort the special-char group, leaving Special pinned above General.</>}
           >
             <SxS
-              oldTag="selector breaks on quotes"
-              newTag="values escaped safely"
-              oldNote={<>upstream builds CSS selectors from raw group <code>value</code> — quotes/hashes break the query.</>}
-              newNote={<>attribute values escaped before selector construction.</>}
+              oldTag="reorder silently no-ops"
+              newTag="reorder by internal id"
+              oldNote={<>upstream <a href="https://github.com/pacocoursey/cmdk/blob/main/cmdk/src/index.tsx#L421" target="_blank" rel="noreferrer"><code>querySelector</code></a> uses <code>encodeURIComponent(value)</code>, but <code>data-value</code> is written raw — the selector never matches, so the group stays where it is.</>}
+              newNote={<>reorders via each group's React <code>id</code> (<code>#uuid</code>), immune to user-supplied <code>value</code>.</>}
               oldNode={
                 <OldCommand label="Old grouped menu">
                   <div className="pg-input">
@@ -748,11 +975,11 @@ export function App() {
                   </div>
                   <OldCommand.List>
                     <OldCommand.Empty>no results · 0 matches</OldCommand.Empty>
-                    <OldCommand.Group heading="General">
-                      <OldCommand.Item value="alpha-item"><span className="pg-item__icon">·</span><span className="pg-item__label">Alpha item</span></OldCommand.Item>
-                    </OldCommand.Group>
                     <OldCommand.Group heading="Special characters" value={specialGroupValue}>
-                      <OldCommand.Item value="needle-item"><span className="pg-item__icon">✦</span><span className="pg-item__label">Special Needle</span></OldCommand.Item>
+                      <OldCommand.Item value="urgent-rush-needle"><span className="pg-item__icon">✦</span><span className="pg-item__label">Rush needle</span></OldCommand.Item>
+                    </OldCommand.Group>
+                    <OldCommand.Group heading="General">
+                      <OldCommand.Item value="needle"><span className="pg-item__icon">·</span><span className="pg-item__label">Needle</span></OldCommand.Item>
                     </OldCommand.Group>
                   </OldCommand.List>
                 </OldCommand>
@@ -766,11 +993,11 @@ export function App() {
                   />
                   <Command.List>
                     <Command.Empty>no results · 0 matches</Command.Empty>
-                    <Command.Group heading="General">
-                      <Command.Item value="alpha-item"><span className="pg-item__icon">·</span><span className="pg-item__label">Alpha item</span></Command.Item>
-                    </Command.Group>
                     <Command.Group heading="Special characters" value={specialGroupValue}>
-                      <Command.Item value="needle-item"><span className="pg-item__icon">✦</span><span className="pg-item__label">Special Needle</span></Command.Item>
+                      <Command.Item value="urgent-rush-needle"><span className="pg-item__icon">✦</span><span className="pg-item__label">Rush needle</span></Command.Item>
+                    </Command.Group>
+                    <Command.Group heading="General">
+                      <Command.Item value="needle"><span className="pg-item__icon">·</span><span className="pg-item__label">Needle</span></Command.Item>
                     </Command.Group>
                   </Command.List>
                 </Command>
@@ -781,40 +1008,47 @@ export function App() {
           {/* 05 */}
           <Pane
             id="group-order"
-            num="06"
-            title="Group order restores after clear"
+            num="07"
+            title="Item order restores after clear"
             chip="stability"
-            desc={<>Type <code>banana</code>, then clear — ordering of A/B/C returns to source.</>}
+            desc={<>Type <code>e</code>, arrow somewhere else if you want, then keep typing or clear — search changes always retarget the top hit for the current query, and clear restores browse order.</>}
+            status={<>new selection · <code>{groupOrderSelected || '∅'}</code></>}
           >
             <SxS
-              oldTag="groups reshuffle after clear"
+              oldTag="upstream drifts after clear"
               newTag="source order preserved"
-              oldNote={<>upstream sorts by last-match rank and keeps it — order drifts.</>}
-              newNote={<>restores original DOM order when search is cleared.</>}
+              oldNote={<>real #264/#375 pattern: after score-sort, clear keeps a scrambled item order.</>}
+              newNote={<>clear restores original source order for items.</>}
               oldNode={
-                <OldCommand label="Old group order demo">
+                <OldCommand label="Old item order demo">
                   <div className="pg-input">
                     <span className="pg-input__glyph" aria-hidden>❯</span>
-                    <OldCommand.Input value={groupOrderSearch} onValueChange={setGroupOrderSearch} placeholder='type "banana", then clear' />
+                    <OldCommand.Input value={groupOrderSearch} onValueChange={setGroupOrderSearch} placeholder='type "e", then clear' />
                   </div>
                   <OldCommand.List>
-                    <OldCommand.Group heading="A"><OldCommand.Item><span className="pg-item__icon">·</span><span className="pg-item__label">Apple</span></OldCommand.Item></OldCommand.Group>
-                    <OldCommand.Group heading="B"><OldCommand.Item><span className="pg-item__icon">·</span><span className="pg-item__label">Banana</span></OldCommand.Item></OldCommand.Group>
-                    <OldCommand.Group heading="C"><OldCommand.Item><span className="pg-item__icon">·</span><span className="pg-item__label">Cherry</span></OldCommand.Item></OldCommand.Group>
+                    {sortRestoreDemoItems.map((item) => (
+                      <OldCommand.Item key={`old-sort-${item}`} value={item}>
+                        <span className="pg-item__icon">·</span>
+                        <span className="pg-item__label">{item}</span>
+                      </OldCommand.Item>
+                    ))}
                   </OldCommand.List>
                 </OldCommand>
               }
               newNode={
-                <Command label="Group Order Demo">
+                <Command label="Item Order Demo" onValueChange={setGroupOrderSelected}>
                   <CmdInput
                     value={groupOrderSearch}
                     onValueChange={setGroupOrderSearch}
-                    placeholder='type "banana", then clear'
+                    placeholder='type "e", then clear'
                   />
                   <Command.List>
-                    <Command.Group heading="A"><Command.Item><span className="pg-item__icon">·</span><span className="pg-item__label">Apple</span></Command.Item></Command.Group>
-                    <Command.Group heading="B"><Command.Item><span className="pg-item__icon">·</span><span className="pg-item__label">Banana</span></Command.Item></Command.Group>
-                    <Command.Group heading="C"><Command.Item><span className="pg-item__icon">·</span><span className="pg-item__label">Cherry</span></Command.Item></Command.Group>
+                    {sortRestoreDemoItems.map((item) => (
+                      <Command.Item key={`new-sort-${item}`} value={item}>
+                        <span className="pg-item__icon">·</span>
+                        <span className="pg-item__label">{item}</span>
+                      </Command.Item>
+                    ))}
                   </Command.List>
                 </Command>
               }
@@ -824,7 +1058,7 @@ export function App() {
           {/* 07 scroll */}
           <Pane
             id="scroll"
-            num="07"
+            num="08"
             title="Keyboard scrolling · scrollIntoView calls per arrow"
             chip="100 items"
             desc={
@@ -911,7 +1145,7 @@ export function App() {
           {/* 08 perf */}
           <Pane
             id="perf"
-            num="08"
+            num="09"
             title="Large list · virtualization vs full DOM"
             chip="perf"
             desc={
@@ -1169,7 +1403,7 @@ export function App() {
           {/* 11 dx · inputId */}
           <Pane
             id="dx-input-id"
-            num="11"
+            num="12"
             title="inputId · external <label htmlFor> binding"
             chip="dx"
             desc={<>Forward a stable <code>id</code> to the underlying <code>input</code> so an external <code>&lt;label&gt;</code> can wire up without ref surgery.</>}
@@ -1197,7 +1431,7 @@ export function App() {
           {/* 12 dx · defaultSearch */}
           <Pane
             id="dx-default-search"
-            num="12"
+            num="13"
             title="defaultSearch · seed the search on mount"
             chip="dx"
             desc={<>The store is seeded with <code>defaultSearch="set"</code> before first paint — filtering is immediate, no one-tick flash.</>}
@@ -1223,7 +1457,7 @@ export function App() {
           {/* 13 dx · onEmpty */}
           <Pane
             id="dx-on-empty"
-            num="13"
+            num="14"
             title="onEmpty · fire when the filtered list is empty"
             chip="dx"
             desc={<>Type <code>zzz</code> — no items match, <code>onEmpty</code> fires. Useful for "no results" analytics or triggering async fallbacks.</>}
@@ -1250,7 +1484,7 @@ export function App() {
           {/* 14 IME · synthetic */}
           <Pane
             id="ime"
-            num="14"
+            num="15"
             title="IME · onValueChange during composition"
             chip="ime"
             desc={
@@ -1283,7 +1517,8 @@ export function App() {
                     setImeNewCalls([])
                     for (const input of [imeOldRef.current, imeNewRef.current]) {
                       if (!input) continue
-                      playComposition(input, ['ሰ', 'ሰላ', 'ሰላም'], 'ሰላም')
+                      resetInput(input)
+                      playComposition(input, ['ስ', 'ሰ', 'ሰል', 'ሰላ', 'ሰላም'], 'ሰላም')
                     }
                   }}
                 >
@@ -1296,7 +1531,8 @@ export function App() {
                     setImeNewCalls([])
                     for (const input of [imeOldRef.current, imeNewRef.current]) {
                       if (!input) continue
-                      playComposition(input, ['n', 'ni', 'nih', 'niho', 'nihon'], '日本')
+                      resetInput(input)
+                      playComposition(input, ['n', 'ん', 'に', 'にほ', 'にほん'], '日本')
                     }
                   }}
                 >
@@ -1307,6 +1543,10 @@ export function App() {
                   onClick={() => {
                     setImeOldCalls([])
                     setImeNewCalls([])
+                    for (const input of [imeOldRef.current, imeNewRef.current]) {
+                      if (!input) continue
+                      resetInput(input)
+                    }
                   }}
                 >
                   reset
@@ -1349,100 +1589,70 @@ export function App() {
             />
           </Pane>
 
-          {/* 15 search matcher */}
+          {/* 16 modes */}
           <Pane
-            id="search"
-            num="15"
-            title="Tiered matcher · score per tier"
-            chip="matcher"
-            desc={
-              <>
-                Upstream's matcher is a single fuzzy score. Master-cmdk uses tiered scoring with diacritic
-                folding: <b>exact</b> 1.0 &gt; <b>prefix</b> 0.9 &gt; <b>word prefix</b> 0.8 &gt;{' '}
-                <b>acronym</b> 0.7 &gt; <b>substring</b> 0.6 &gt; <b>fuzzy</b> 0–0.5. Type below to see live scores.
-              </>
-            }
-          >
-            <div className="pg-input">
-              <span className="pg-input__glyph" aria-hidden>❯</span>
-              <input
-                type="search"
-                value={matcherSearch}
-                onChange={(e) => setMatcherSearch(e.target.value)}
-                placeholder='try "github", "gh", "itH", "cafe", "se"…'
-                autoComplete="off"
-                spellCheck={false}
-                style={{ width: '100%' }}
-              />
-            </div>
-            <MatcherTable search={matcherSearch} />
-          </Pane>
-
-          {/* 16 — ingestion roadmap */}
-          <Pane
-            id="ingestion"
+            id="modes"
             num="16"
-            title="Ingestion · JSX today, array roadmap"
-            chip="dx surface"
+            title="Modes · scoped filter + loading"
+            chip="modes"
             desc={
               <>
-                A DX choice, not a framework choice. Today items are authored as JSX children that register
-                themselves into the store. The roadmap adds <code>{'<Command items={rows} />'}</code> so data
-                sources can feed the engine without writing JSX per row. React-only in both cases; this pane
-                implies nothing about Vue/Svelte/vanilla support.
+                One <code>Command</code>, two <code>Mode</code>s. <code>commands</code> uses
+                default <code>command-score</code>; <code>files</code> overrides with a
+                path-aware <code>filter</code> and carries its own <code>loading</code>.
+                Type <code>index</code> — commands returns nothing; files ranks by basename.
               </>
             }
-            status={
-              <>
-                <b>today</b> · JSX registry live · <b>roadmap</b> · array ingestion not implemented yet
-              </>
+            status={<><b>active mode</b> · <code>{mode}</code>{filesLoading && mode === 'files' ? ' · loading' : ''}</>}
+            foot={
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="pg-btn" onClick={() => setMode('commands')}>commands</button>
+                <button className="pg-btn" onClick={() => setMode('files')}>files</button>
+                <button className="pg-btn" onClick={() => setFilesLoading((v) => !v)}>
+                  toggle files loading
+                </button>
+              </div>
             }
           >
             <SxS
-              oldLabel="today · working"
-              newLabel="roadmap · stub"
-              oldTag="JSX as registry"
-              newTag="array ingestion"
-              oldNote={
-                <>
-                  Items are authored as JSX children and register themselves into the command store today.
-                </>
-              }
-              newNote={
-                <>
-                  Array ingestion is not implemented yet. This is only the intended API shape, shown honestly.
-                </>
-              }
+              oldTag="no Mode primitive"
+              newTag="scoped filter + loading"
               oldNode={
-                <Command label="JSX ingestion demo">
-                  <div className="pg-input">
-                    <span className="pg-input__glyph" aria-hidden>❯</span>
-                    <Command.Input
-                      value={ingestionSearch}
-                      onValueChange={setIngestionSearch}
-                      placeholder="search JSX items…"
-                    />
-                  </div>
-                  <Command.List>
-                    <Command.Empty>no results · 0 matches</Command.Empty>
-                    {ingestionRows.map((item) => (
-                      <Command.Item key={item.value} value={item.value}>
-                        <span className="pg-item__icon">·</span>
-                        <span className="pg-item__label">{item.label}</span>
-                      </Command.Item>
-                    ))}
-                  </Command.List>
-                </Command>
+                <NAStub reason={<>upstream has no mode abstraction — swap trees or remount to switch scopes.</>} />
               }
               newNode={
-                <NAStub
-                  reason={
-                    <>
-                      Roadmap sketch only: <code>{'<Command items={rows} renderItem={...} />'}</code> is not
-                      implemented yet. Data-driven ingestion inside React — not a cross-framework claim.
-                    </>
-                  }
-                />
+                <Command label="Mode Demo" mode={mode} onModeChange={setMode}>
+                  <CmdInput
+                    value={modeSearch}
+                    onValueChange={setModeSearch}
+                    placeholder={mode === 'files' ? 'search files…' : 'search commands…'}
+                  />
+                  <Command.List>
+                    <Command.Empty>no results · 0 matches</Command.Empty>
+
+                    <Command.Mode value="commands">
+                      <Command.Group heading="Actions">
+                        {modeCommandItems.map((it) => (
+                          <Command.Item key={it.value} value={it.value}>
+                            <span className="pg-item__icon">◆</span>
+                            <span className="pg-item__label">{it.label}</span>
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
+                    </Command.Mode>
+
+                    <Command.Mode value="files" filter={filesFilter} loading={filesLoading}>
+                      <Command.Group heading="Files">
+                        {modeFileItems.map((path) => (
+                          <Command.Item key={path} value={path}>
+                            <span className="pg-item__icon">▤</span>
+                            <span className="pg-item__label">{path}</span>
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
+                    </Command.Mode>
+                  </Command.List>
+                </Command>
               }
             />
           </Pane>

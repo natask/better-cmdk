@@ -88,7 +88,7 @@ type MutableState = {
 
 export type CommandEngine = ReturnType<typeof createCommandEngine>
 
-export const defaultFilter: CommandFilter = (value, search, keywords) => betterMatch(value, search, keywords)
+export const defaultFilter: CommandFilter = (value, search, keywords) => commandScore(value, search, keywords)
 
 export function createCommandEngine(options: CommandEngineOptions = {}) {
   let opts = { ...options }
@@ -464,10 +464,12 @@ function getAcronym(words: string[]): string {
 }
 
 function getWords(input: string): string[] {
-  return input
+  const words = input
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .split(/[\s\-_\/]+/)
+    .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
+
+  return words.length > 0 ? words : input.split(/\s+/).filter(Boolean)
 }
 
 function tierScore(rawHaystack: string, needle: string): number {
@@ -481,15 +483,133 @@ function tierScore(rawHaystack: string, needle: string): number {
   if (getAcronym(words) === needle) return 0.7
   if (haystack.includes(needle)) return 0.6
 
-  return clamp(commandScore(haystack, needle, [] as string[]) * 0.5, 0, 0.5)
+  return clamp(legacyCommandScore(haystack, needle, [] as string[]) * 0.5, 0, 0.5)
 }
 
-export function betterMatch(value: string, search: string, keywords?: string[]): number {
-  const needle = fold(search)
-  if (!needle) return 0
+function getSearchTokens(search: string): string[] {
+  const tokens = getWords(search).map(fold).filter(Boolean)
+  return tokens.length > 0 ? tokens : [fold(search)].filter(Boolean)
+}
 
-  const labelScore = tierScore(value, needle)
-  const keywordScore = (keywords ?? []).reduce((max, keyword) => Math.max(max, tierScore(keyword, needle)), 0)
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0
+  if (a.length === 0) return b.length
+  if (b.length === 0) return a.length
+
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
+  let current = new Array<number>(b.length + 1)
+
+  for (let ai = 1; ai <= a.length; ai += 1) {
+    current[0] = ai
+    for (let bi = 1; bi <= b.length; bi += 1) {
+      const substitution = previous[bi - 1] + (a[ai - 1] === b[bi - 1] ? 0 : 1)
+      current[bi] = Math.min(previous[bi] + 1, current[bi - 1] + 1, substitution)
+    }
+    ;[previous, current] = [current, previous]
+  }
+
+  return previous[b.length]
+}
+
+function typoScore(word: string, token: string): number {
+  if (token.length < 3 || word.length < 3) return 0
+  const distance = levenshtein(word, token)
+  const length = Math.max(word.length, token.length)
+  const allowed = length <= 5 ? 1 : length <= 9 ? 2 : 3
+  if (distance > allowed) return 0
+
+  const similarity = 1 - distance / length
+  return clamp(0.58 + similarity * 0.25, 0, 0.83)
+}
+
+function subsequenceScore(word: string, token: string): number {
+  if (token.length < 2 || word.length < 2 || token.length > word.length) return 0
+
+  let best = 0
+
+  for (let start = 0; start < word.length; start += 1) {
+    if (word[start] !== token[0]) continue
+
+    let wordIndex = start
+    const positions = [start]
+
+    for (let tokenIndex = 1; tokenIndex < token.length; tokenIndex += 1) {
+      wordIndex = word.indexOf(token[tokenIndex], wordIndex + 1)
+      if (wordIndex === -1) break
+      positions.push(wordIndex)
+    }
+
+    if (positions.length !== token.length) continue
+
+    const span = positions[positions.length - 1] - positions[0] + 1
+    const density = token.length / span
+    if (density < 0.45) continue
+
+    let consecutive = 0
+    for (let index = 1; index < positions.length; index += 1) {
+      if (positions[index] === positions[index - 1] + 1) consecutive += 1
+    }
+
+    const coverage = token.length / word.length
+    const consecutiveRatio = token.length === 1 ? 0 : consecutive / (token.length - 1)
+    const startBonus = positions[0] === 0 ? 0.14 : 0
+    const score = 0.52 + density * 0.22 + coverage * 0.08 + consecutiveRatio * 0.08 + startBonus
+    best = Math.max(best, clamp(score, 0, 0.78))
+  }
+
+  return best
+}
+
+function fuzzyTokenScore(token: string, rawHaystack: string): number {
+  const haystack = fold(rawHaystack)
+  if (!haystack || !token) return 0
+
+  const direct = tierScore(rawHaystack, token)
+  if (direct >= 0.8) return direct
+
+  const words = getWords(rawHaystack).map(fold)
+  const acronym = getAcronym(words)
+  let best = acronym.startsWith(token) ? 0.78 : acronym.includes(token) ? 0.68 : 0
+
+  for (const word of words) {
+    if (!word) continue
+    if (word === token) best = Math.max(best, 1)
+    else if (word.startsWith(token)) best = Math.max(best, 0.9)
+    else if (word.includes(token)) best = Math.max(best, 0.76)
+    else best = Math.max(best, subsequenceScore(word, token), typoScore(word, token))
+  }
+
+  return Math.max(best, direct)
+}
+
+function fuzzyTextScore(rawHaystack: string, rawSearch: string): number {
+  const needle = fold(rawSearch)
+  const haystack = fold(rawHaystack)
+  if (!needle || !haystack) return 0
+
+  const phraseScore = tierScore(rawHaystack, needle)
+  const tokens = getSearchTokens(rawSearch)
+  if (tokens.length === 0) return phraseScore
+
+  let total = 0
+  let min = 1
+  for (const token of tokens) {
+    const tokenScore = fuzzyTokenScore(token, rawHaystack)
+    if (tokenScore < 0.52) return phraseScore >= 0.6 ? phraseScore : 0
+    total += tokenScore
+    min = Math.min(min, tokenScore)
+  }
+
+  const tokenAverage = total / tokens.length
+  const coveragePenalty = tokens.length === 1 ? 1 : 0.92 + min * 0.08
+  return Math.max(phraseScore, clamp(tokenAverage * coveragePenalty, 0, 0.95))
+}
+
+export function commandScore(value: string, search: string, keywords?: string[]): number {
+  if (!fold(search)) return 0
+
+  const labelScore = fuzzyTextScore(value, search)
+  const keywordScore = (keywords ?? []).reduce((max, keyword) => Math.max(max, fuzzyTextScore(keyword, search)), 0)
 
   if (labelScore > 0 && labelScore >= keywordScore) {
     return clamp(labelScore + 0.01, 0, 1)
@@ -608,7 +728,7 @@ function formatInput(string: string) {
   return string.toLowerCase().replace(COUNT_SPACE_REGEXP, ' ')
 }
 
-export function commandScore(string: string, abbreviation: string, aliases: string[] = []): number {
+function legacyCommandScore(string: string, abbreviation: string, aliases: string[] = []): number {
   const value = aliases.length > 0 ? `${string} ${aliases.join(' ')}` : string
   return commandScoreInner(value, abbreviation, formatInput(value), formatInput(abbreviation), 0, 0, {})
 }

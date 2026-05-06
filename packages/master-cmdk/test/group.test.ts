@@ -49,6 +49,61 @@ test.describe('group', async () => {
     await expect(visibleGroupHeadings).toHaveText(['A', 'B', 'C'])
   })
 
+  test('items restore source order after search clears (upstream #264/#375)', async ({ page }) => {
+    const input = page.locator(`[data-testid="item-restore-input"]`)
+    const labels = page.locator(`[data-testid="item-restore-demo"] [cmdk-item]`)
+    const selected = page.locator(`[data-testid="item-restore-demo"] [cmdk-item][aria-selected="true"]`)
+    const expected = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'kiwi', 'lemon']
+    await expect(labels).toHaveText(expected)
+    // Query changes keep the user in search mode, so selection follows the
+    // top-ranked item for the active query.
+    await input.fill('e')
+    await expect(labels.first()).toHaveText('elderberry')
+    await expect(selected).toHaveText('elderberry')
+    // After clear, DOM order resets to source and selection returns to the
+    // first row of the browse order.
+    await input.fill('')
+    await expect(labels).toHaveText(expected)
+    await expect(selected).toHaveText('apple')
+  })
+
+  test('query changes override a row you arrowed to during search', async ({ page }) => {
+    const input = page.locator(`[data-testid="item-restore-input"]`)
+    const selected = page.locator(`[data-testid="item-restore-demo"] [cmdk-item][aria-selected="true"]`)
+    await input.focus()
+    await input.fill('e')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    const pickedDuringSearch = await selected.textContent()
+    expect(pickedDuringSearch).not.toBe('elderberry')
+    await input.fill('el')
+    await expect(selected).toHaveText('elderberry')
+  })
+
+  test('mixed items and groups restore interleaving after clear', async ({ page }) => {
+    const input = page.locator(`[data-testid="mixed-restore-input"]`)
+    const topLevelChildren = page.locator(
+      `[data-testid="mixed-restore-demo"] [cmdk-list-sizer] > *`,
+    )
+    const initial = await topLevelChildren.evaluateAll((els) =>
+      els.map((e) => {
+        if (e.hasAttribute('cmdk-group')) return `group:${e.querySelector('[cmdk-group-heading]')?.textContent ?? ''}`
+        if (e.hasAttribute('cmdk-item')) return `item:${e.getAttribute('data-value')}`
+        return e.tagName.toLowerCase()
+      }),
+    )
+    await input.fill('c')
+    await input.fill('')
+    const afterClear = await topLevelChildren.evaluateAll((els) =>
+      els.map((e) => {
+        if (e.hasAttribute('cmdk-group')) return `group:${e.querySelector('[cmdk-group-heading]')?.textContent ?? ''}`
+        if (e.hasAttribute('cmdk-item')) return `item:${e.getAttribute('data-value')}`
+        return e.tagName.toLowerCase()
+      }),
+    )
+    expect(afterClear).toEqual(initial)
+  })
+
   test('group-level filter overrides command filter for that group only', async ({ page }) => {
     const input = page.locator(`[data-testid="group-filter-input"]`)
     const demo = page.locator(`[data-testid="group-filter-demo"]`)
