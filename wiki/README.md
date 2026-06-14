@@ -1,8 +1,12 @@
 # master-cmdk wiki
 
-This directory is the working source of truth for product thinking, plans, and architecture.
+This directory is the internal project memory hub.
 
-Use `scratch/` for raw notes and experiments. Use `wiki/` for the cleaned documents that another person can read, review, and build from.
+Start at [HOME](HOME.md).
+
+Use `scratch/` for raw notes and experiments. Use `wiki/` for context recovery, decisions, task maps, and cleaned project thinking.
+
+Public documentation belongs in `docs/`, powered by `farming-labs/docs`.
 
 ## Current thesis
 
@@ -12,6 +16,11 @@ It should not become a search engine, workflow engine, analytics store, auth sys
 
 ## Documents
 
+- [Home](HOME.md) - internal project hub.
+- [Now](NOW.md) - current state and active context.
+- [Tasks](TASKS.md) - task map and GitHub/Linear link targets.
+- [Decisions](DECISIONS.md) - durable decisions.
+- [Log](LOG.md) - chronological project memory.
 - [Product scope](product-scope.md) - what the product owns and does not own.
 - [Architecture](architecture.md) - layers, package split, and data flow.
 - [Adapter contracts](adapter-contracts.md) - the thin interfaces that connect external systems.
