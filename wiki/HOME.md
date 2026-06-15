@@ -1,39 +1,38 @@
-# Project hub
+# project hub
 
-This is the internal project hub for `better-cmdk` / `master-cmdk`.
+This is the project hub for `better-cmdk` / `master-cmdk`.
 
-Open this when context is lost.
+Open this when you forget what is going on.
 
-## Start here
+## start here
 
 1. Read [NOW](NOW.md) for the current state.
-2. Read [TASKS](TASKS.md) for active work and tracking links.
-3. Read [DECISIONS](DECISIONS.md) for what has already been decided.
+2. Read [TASKS](TASKS.md) for active work and task links.
+3. Read [DECISIONS](DECISIONS.md) for what we decided.
 4. Read [LOG](LOG.md) for what happened recently.
 
-## What this project is
+## what this project is
 
-`master-cmdk` is a cmdk-compatible replacement that should be easy to adopt first, then expandable through adapters.
+`master-cmdk` replaces `cmdk` first. It keeps existing JSX working. It adds adapters after that.
 
-The product direction:
+Build toward this:
 
-- replace `cmdk` without breaking existing JSX
+- replace `cmdk` and keep existing JSX
 - preserve the public cmdk API and CSS attribute contract
-- add better command-surface features
+- add better command features
 - connect to existing search, OpenAPI, MCP, execution, auth, and analytics systems
-- avoid owning infrastructure that should stay external
 
-## Repo map
+## repo map
 
-- `packages/master-cmdk/` - React package and cmdk-compatible surface.
+- `packages/master-cmdk/` - React package and cmdk-compatible UI.
 - `packages/master-cmdk-core/` - framework-neutral core work.
 - `packages/master-cmdk-semantic/` - current semantic/search experiment area.
-- `apps/playground/` - local demo and manual verification surface.
+- `apps/playground/` - local demo and manual test app.
 - `wiki/` - internal memory hub for you and agents.
 - `scratch/` - raw notes, experiments, logs, and research.
 - `docs/` - reserved for public docs powered by `farming-labs/docs`.
 
-## Reference docs
+## reference docs
 
 - [Product scope](product-scope.md)
 - [Architecture](architecture.md)
@@ -42,7 +41,7 @@ The product direction:
 - [Open decisions](open-decisions.md)
 - [Notion and Linear exit](notion-linear-exit.md)
 
-## Session protocol
+## session steps
 
 Before work:
 

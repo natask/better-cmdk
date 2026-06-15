@@ -1,10 +1,10 @@
-# Adapter contracts
+# adapter contracts
 
-These are working shapes, not final API commitments.
+These shapes can change.
 
-The goal is to make each external system replaceable without changing the command UI.
+Use adapters so teams can swap tools without changing the command UI.
 
-## Action manifest
+## action manifest
 
 ```ts
 export type CommandAction = {
@@ -21,7 +21,7 @@ export type CommandAction = {
 }
 ```
 
-## Search adapter
+## search adapter
 
 ```ts
 export type SearchAdapter = {
@@ -36,9 +36,9 @@ export type SearchAdapter = {
 
 Use for Turbopuffer, Algolia, Postgres, Meilisearch, local indexes, or customer APIs.
 
-`master-cmdk` should not care whether results came from fuzzy search, exact search, vector search, or an API.
+The adapter returns results. The command UI renders them.
 
-## Action source adapter
+## action source adapter
 
 ```ts
 export type ActionSourceAdapter = {
@@ -54,7 +54,7 @@ Use for:
 - workflow registries
 - admin-tool manifests
 
-## Execution adapter
+## execution adapter
 
 ```ts
 export type ExecutionAdapter = {
@@ -71,7 +71,7 @@ export type ExecutionAdapter = {
 
 Use for Temporal, Hatchet, Trigger.dev, Restate, DBOS, Inngest, Cloudflare Queues, or a customer's own job system.
 
-## Auth adapter
+## auth adapter
 
 ```ts
 export type AuthAdapter = {
@@ -90,7 +90,7 @@ export type AuthDecision =
 
 Use for customer auth, RBAC, workspace policies, billing tier gates, and approval workflows.
 
-## Analytics adapter
+## analytics adapter
 
 ```ts
 export type AnalyticsAdapter = {
@@ -98,7 +98,7 @@ export type AnalyticsAdapter = {
 }
 ```
 
-Events to emit:
+Emit these events:
 
 - `query_typed`
 - `no_results`
@@ -111,4 +111,4 @@ Events to emit:
 - `execution_failed`
 - `execution_cancelled`
 
-The open-source package emits events. Storage belongs to the user's analytics system unless a hosted product is added later.
+The open-source package emits events. The user's analytics system stores them.

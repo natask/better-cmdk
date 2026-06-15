@@ -1,6 +1,6 @@
-# Roadmap
+# roadmap
 
-## Phase 1 - Make replacement easy
+## phase 1 - make replacement easy
 
 Goal: a user can replace `cmdk` with `master-cmdk` and keep moving.
 
@@ -13,7 +13,7 @@ Work:
 - publish a drop-in demo
 - keep Playwright compatibility suite green
 
-Acceptance:
+Check:
 
 - existing cmdk snippets compile unchanged
 - `pnpm -F master-cmdk build`
@@ -21,9 +21,9 @@ Acceptance:
 - `pnpm -F master-cmdk test`
 - `pnpm -F master-cmdk test:e2e`
 
-## Phase 2 - Add command-surface enhancements
+## phase 2 - improve the command surface
 
-Goal: make the palette clearly better without requiring backend infrastructure.
+Goal: make the palette better with no backend setup.
 
 Work:
 
@@ -33,36 +33,36 @@ Work:
 - previews
 - forms and confirmations
 - loading/error/result states
-- query analytics event emission
+- query analytics events
 
-Acceptance:
+Check:
 
 - all features are additive
 - no cmdk API breakage
 - playground scenarios exist
 
-## Phase 3 - Define the action manifest
+## phase 3 - define the action manifest
 
 Goal: one schema for product actions.
 
 Work:
 
 - action manifest type
-- command/action normalization
-- source metadata
-- input schema metadata
-- permission metadata
+- command/action mapping
+- source data
+- input schema data
+- permission data
 - preview and execution references
 
-Acceptance:
+Check:
 
 - manual actions can render in the palette
 - OpenAPI and MCP can map into the same shape
 - docs explain what is core vs adapter
 
-## Phase 4 - Adapter contracts
+## phase 4 - define adapter contracts
 
-Goal: connect external systems without owning them.
+Goal: connect tools that teams already run.
 
 Work:
 
@@ -72,13 +72,12 @@ Work:
 - auth adapter contract
 - analytics adapter contract
 
-Acceptance:
+Check:
 
 - adapters are optional
-- no bundled infra requirement
-- examples can be implemented with mocks first
+- examples can use mocks first
 
-## Phase 5 - First connector examples
+## phase 5 - add first connector examples
 
 Goal: prove the layer works with real external tools.
 
@@ -90,24 +89,24 @@ Candidate examples:
 - PostHog analytics adapter
 - Trigger.dev or Hatchet execution adapter
 
-Acceptance:
+Check:
 
 - each connector is thin
 - each connector can be replaced by a customer implementation
-- examples avoid locking the product to one backend
+- examples keep the backend swappable
 
-## Phase 6 - Shareable working docs
+## phase 6 - keep shareable docs
 
 Goal: move planning out of chat, Notion, and Linear into local Markdown.
 
 Work:
 
 - maintain this wiki
-- add decision records for major architecture choices
-- add implementation briefs per task
+- add decision records for major choices
+- add task briefs
 - generate issue/task docs from the roadmap
 
-Acceptance:
+Check:
 
 - another person can read `wiki/README.md` and understand the plan
-- docs can be copied/exported/shared without depending on Notion or Linear
+- docs can be copied, exported, and shared

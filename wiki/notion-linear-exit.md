@@ -1,53 +1,53 @@
 # Notion and Linear exit
 
-## Goal
+## goal
 
-Stop losing product thinking across chat, Notion, Linear, and scratch files.
+Keep product thinking in one place.
 
-The repo should contain the working documents:
+The repo should hold:
 
 - product direction
 - architecture
 - adapter contracts
 - roadmap
-- implementation briefs
+- task briefs
 - decision records
 
-## Source of truth
+## main place
 
-`wiki/` is canonical for cleaned thinking.
+`wiki/` stores cleaned thinking.
 
-`scratch/` remains local-only for raw notes, experiments, research dumps, and temporary task lists.
+`scratch/` stores raw notes, experiments, research dumps, and temporary task lists.
 
-Notion and Linear can be sharing or tracking surfaces, not the place where the product truth lives.
+Notion can share docs. Linear can track work. `wiki/` stores the product memory.
 
-## Sharing options
+## share options
 
-### Option A - Share Markdown directly
+### option A - share Markdown directly
 
 Send someone the relevant files or a GitHub link.
 
 Best for engineers and collaborators who can read repo docs.
 
-### Option B - Export generated docs
+### option B - export docs
 
-Generate a single Markdown or HTML packet from `wiki/` when a more polished share is needed.
+Generate one Markdown or HTML packet from `wiki/` when someone needs a cleaner copy.
 
-Best for advisors, users, or design/product review.
+Best for advisors, users, or product review.
 
-### Option C - Push to Notion through the API
+### option C - push to Notion through the API
 
-Possible later if sharing requires Notion.
+Do this later if sharing requires Notion.
 
-Important constraint: Notion should be an output target, not the editor of record. If Notion diverges from `wiki/`, `wiki/` wins.
+Push from `wiki/` to Notion. Keep edits in `wiki/`.
 
-### Option D - Generate Linear tickets from docs
+### option D - generate Linear tickets from docs
 
-Possible later if task tracking requires Linear.
+Do this later if task tracking requires Linear.
 
-Important constraint: Linear tickets should point back to wiki docs for context. They should not hold the full plan.
+Linear tickets should link back to wiki docs.
 
-## Immediate practice
+## habit
 
 1. Write product thinking in `wiki/`.
 2. Link implementation tasks to wiki docs.

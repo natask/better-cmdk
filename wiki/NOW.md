@@ -1,39 +1,40 @@
-# Now
+# now
 
 Last updated: 2026-06-14
 
-## Current state
+## current state
 
-The project is shifting from isolated cmdk fixes and semantic-search experiments toward a cleaner product shape:
+The project now has two threads:
 
-> A cmdk-compatible replacement that can later connect existing search, OpenAPI/MCP tools, execution runtimes, auth, and analytics through adapters.
+- fix `cmdk` and keep the same API
+- connect search, OpenAPI, MCP, workflow tools, auth, and analytics through adapters
 
-The immediate operational problem is context loss across sessions. The fix is to make `wiki/` the internal project hub.
+Chat sessions lose context. Use `wiki/` to remember the project.
 
-## Current decision
+## current split
 
 Use this split:
 
 - `wiki/` - private project memory for you and agents.
-- `scratch/` - raw notes and temporary workbench material.
+- `scratch/` - raw notes and temporary files.
 - `docs/` - public docs powered by `farming-labs/docs`.
 - GitHub - code, PRs, issues, CI, releases.
-- Linear - roadmap, cycles, priorities, execution tracking.
+- Linear - roadmap, cycles, priority, and work status.
 
-## Recent commits
+## recent commits
 
 - `96c8d00 docs(wiki): add working product documents`
 - `817c5f8 feat(playground): add product action landing page`
 
-## Current local caveat
+## local state
 
-There are unrelated local changes in the worktree from earlier implementation and semantic-search work. Do not revert them without explicit instruction.
+The worktree has unrelated local changes from earlier code and semantic-search work. Keep them unless the user asks to change them.
 
-## Next operating goal
+## next goal
 
-Clean up the project management and memory structure before doing more feature work.
+Clean up project management before more feature work.
 
-Concrete next step:
+Next steps:
 
 1. Finish the internal hub files in `wiki/`.
 2. Decide how GitHub and Linear should map to this hub.

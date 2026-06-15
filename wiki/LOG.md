@@ -1,8 +1,8 @@
-# Log
+# log
 
 ## 2026-06-14
 
-### Internal memory system
+### set up project memory
 
 Created the first project memory docs:
 
@@ -16,9 +16,10 @@ Created the first project memory docs:
 Then clarified the split:
 
 - `wiki/` is private project memory.
-- `docs/` is public documentation powered by `farming-labs/docs`.
+- `docs/` is public docs powered by `farming-labs/docs`.
 - `scratch/` is raw notes and experiments.
-- GitHub and Linear are execution systems, not canonical memory.
+- GitHub tracks code work.
+- Linear tracks project work.
 
 Added hub files:
 
@@ -28,15 +29,15 @@ Added hub files:
 - `wiki/DECISIONS.md`
 - `wiki/LOG.md`
 
-### Landing page
+### added landing page
 
 Added a default playground marketing page:
 
 - commit `817c5f8 feat(playground): add product action landing page`
 
-The root playground route now presents the product-action layer concept. The existing full fix demo remains available at `/?demo`.
+The root playground route now shows the product-action layer. The full fix demo remains at `/?demo`.
 
-### Verification
+### checked the page
 
 After the landing page commit, these checks passed:
 

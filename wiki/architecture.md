@@ -1,21 +1,21 @@
-# Architecture
+# architecture
 
-## Layer model
+## layers
 
 ```txt
-UI surfaces
+UI
   React cmdk-compatible package
-  future framework adapters
-  browser extension surface later
+  framework adapters later
+  browser extension later
 
-Core engine
+Core
   item registry
   matcher and alias expansion
   action manifest
   command state
-  permissions metadata
-  execution status model
-  analytics event model
+  permission data
+  run status
+  analytics events
 
 Adapters
   search
@@ -25,32 +25,32 @@ Adapters
   auth
   analytics
 
-External systems
+Customer tools
   Turbopuffer / Algolia / Postgres / Meilisearch / customer API
   Temporal / Hatchet / Trigger.dev / Restate / DBOS / Inngest / customer queue
   PostHog / Segment / warehouse
   customer's auth and app database
 ```
 
-## Package direction
+## packages
 
 ### `master-cmdk`
 
 React package. Preserves cmdk JSX and CSS attributes.
 
-Owns:
+It owns:
 
 - React components
 - DOM attributes
 - accessibility behavior
 - keyboard and pointer behavior
-- rendering previews/forms/status
+- previews, forms, and status UI
 
 ### `master-cmdk-core`
 
 Framework-neutral core.
 
-Owns:
+It owns:
 
 - command registry
 - action manifest shape
@@ -59,17 +59,17 @@ Owns:
 - state transitions
 - analytics event definitions
 
-Does not own:
+Customer tools own:
 
 - React
 - DOM
 - network storage
-- workflow execution
-- auth decisions
+- workflow runs
+- auth rules
 
-### Connector packages
+### connector packages
 
-Potential packages:
+Possible packages:
 
 - `master-cmdk-openapi`
 - `master-cmdk-mcp`
@@ -79,20 +79,20 @@ Potential packages:
 - `master-cmdk-trigger`
 - `master-cmdk-posthog`
 
-Each connector should be small and replaceable.
+Keep each connector small.
 
-## Data flow
+## data flow
 
 1. User types in the command surface.
 2. Local matcher and aliases run first.
 3. Search adapter may return remote candidates.
-4. Action manifest normalizes candidates into command items.
+4. Action manifest turns candidates into command items.
 5. Auth adapter marks actions as allowed, disabled, hidden, or approval-gated.
 6. User previews or confirms an action.
-7. Execution adapter starts work in the customer's runtime.
+7. Execution adapter starts work in the customer's workflow tool.
 8. Status updates stream back into the command surface.
 9. Analytics adapter receives query/result/execution events.
 
-## Key principle
+## main point
 
-The product value is the connective layer, not the infrastructure behind it.
+`master-cmdk` connects tools that teams already run.

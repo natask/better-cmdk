@@ -1,10 +1,10 @@
-# Open decisions
+# open decisions
 
-## Product naming
+## product name
 
 Current package name is `master-cmdk`.
 
-Open question: should the broader adapter/action-manifest layer keep this name or get a separate product/package name?
+Question: should the adapter/action-manifest layer keep this name or use a new package name?
 
 Options:
 
@@ -12,44 +12,44 @@ Options:
 - package split: `master-cmdk` for UI, `master-command` or similar for core
 - keep `master-cmdk-core` as the framework-neutral package
 
-## Adapter API location
+## adapter API location
 
-Open question: do adapter contracts live in `master-cmdk-core` or a separate package?
+Question: do adapter contracts live in `master-cmdk-core` or a separate package?
 
-Default leaning: put stable contracts in `master-cmdk-core`; put provider-specific code in connector packages.
+Current lean: put stable contracts in `master-cmdk-core`; put provider code in connector packages.
 
 ## OpenAPI shape
 
-Open question: should OpenAPI ingestion happen at build time, runtime, or both?
+Question: should OpenAPI load at build time, runtime, or both?
 
-Likely answer:
+Current lean:
 
 - build-time generation for typed app actions
-- runtime loading for admin/internal tools and dynamic APIs
+- runtime load for admin/internal tools and dynamic APIs
 
 ## MCP relationship
 
-Open question: is MCP an import source, export target, or both?
+Question: is MCP an import source, export target, or both?
 
-Likely answer: both.
+Current lean: both.
 
 - import MCP tools into the command surface
 - export the action manifest as an MCP server
 
-## Analytics storage
+## analytics storage
 
-Open question: should open source include local storage for events?
+Question: should open source store events locally?
 
-Default leaning: emit events only. Provide simple dev/demo storage, but production storage should be an adapter.
+Current lean: emit events. Provide simple dev storage. Use an adapter for production storage.
 
-## Browser extension
+## browser extension
 
-Open question: when should a browser extension enter the roadmap?
+Question: when should a browser extension enter the roadmap?
 
-Default leaning: later. First make the app-embedded command layer work. The browser extension can become another UI/execution surface after the manifest and adapters are stable.
+Current lean: later. First make the app command layer work. Add the browser extension after the manifest and adapters work.
 
 ## Notion and Linear
 
-Open question: do we sync wiki docs back to Notion/Linear?
+Question: do we sync wiki docs back to Notion/Linear?
 
-Default leaning: local Markdown is canonical. Notion/Linear can receive exported summaries if sharing requires it, but they should not become the source of truth.
+Current lean: local Markdown is the main place. Export summaries to Notion/Linear only when sharing requires it.

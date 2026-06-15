@@ -1,14 +1,14 @@
-# Product scope
+# product scope
 
-## One-line positioning
+## short version
 
-`master-cmdk` is a cmdk-compatible command surface that connects a product's existing search, OpenAPI/MCP tools, execution runtime, auth, and analytics.
+`master-cmdk` replaces `cmdk` and connects to the tools a product already uses: search, OpenAPI, MCP, workflow tools, auth, and analytics.
 
-## What we provide
+## what we provide
 
-### 1. Drop-in cmdk replacement
+### 1. replace `cmdk`
 
-The first install path should be:
+Start with this:
 
 ```tsx
 // before
@@ -18,7 +18,7 @@ import { Command } from 'cmdk'
 import { Command } from 'master-cmdk'
 ```
 
-Existing JSX should keep working:
+Keep existing JSX:
 
 ```tsx
 <Command>
@@ -29,36 +29,38 @@ Existing JSX should keep working:
 </Command>
 ```
 
-Compatibility is the wedge. The user should not need to buy into agents, OpenAPI, analytics, or workflow execution on day one.
+Users can swap the package first. They can add OpenAPI, MCP, analytics, and workflow tools later.
 
-### 2. Enhanced command UI
+### 2. improve the command UI
 
-Additive capabilities on top of cmdk:
+Add:
 
-- better matching and aliases
+- better match behavior
+- aliases
 - group-level and item-level behavior
 - previews
 - forms and confirmations
 - loading, running, failed, complete states
 - disabled and approval-gated actions
-- action result rendering
-- query capture for no-result states
+- action results
+- no-result query capture
 
-### 3. Action manifest
+### 3. define actions once
 
-A normalized description of what the product can do.
+Define what the product can do in one shape.
 
-The same manifest should feed:
+Use that shape for:
 
 - the visible command palette
 - in-app agent actions
 - MCP tool generation
 - CLI/tooling generation
-- documentation and workflow discovery
+- docs
+- workflow discovery
 
-### 4. Adapter layer
+### 4. connect adapters
 
-Adapters connect existing systems:
+Adapters connect:
 
 - search adapter
 - OpenAPI action source
@@ -67,23 +69,23 @@ Adapters connect existing systems:
 - auth/permission adapter
 - analytics adapter
 
-The adapters should be thin. They translate between `master-cmdk` and tools customers already run.
+Keep adapters thin. They should translate between `master-cmdk` and tools customers already run.
 
-## What we do not provide
+## what stays outside
 
-Do not build these as core product infrastructure:
+Customers bring:
 
 - vector database
 - semantic search engine
-- durable workflow engine
+- workflow engine
 - auth provider
 - analytics warehouse
 - browser automation engine
 - customer database
-- hosted agent runtime
+- hosted agent tool
 
-Hosted versions may exist later, but the open-source/self-hosted contract should work without them.
+The open-source package should work with customer-owned tools.
 
-## Product promise
+## product promise
 
-Bring your own search, execution, auth, and analytics. `master-cmdk` makes them usable from one command interface.
+Bring search, workflow tools, auth, and analytics. `master-cmdk` makes them work from one command UI.

@@ -1,14 +1,14 @@
-# Tasks
+# tasks
 
-This file is the human-readable task map. GitHub and Linear should track executable work, but this file explains how the work fits together.
+This file maps the work. GitHub and Linear track tasks. This file explains how the tasks fit together.
 
-## Active
+## active
 
-### 1. Establish internal project hub
+### 1. set up the project hub
 
 Status: in progress
 
-Goal: make `wiki/` the single place to recover context across chat sessions.
+Goal: use `wiki/` to remember the project across chat sessions.
 
 Done:
 
@@ -19,13 +19,13 @@ Remaining:
 
 - decide GitHub/Linear mapping
 - add links once projects/issues exist
-- add session logging practice
+- add session log habit
 
-### 2. Codebase cleanup plan
+### 2. plan code cleanup
 
 Status: not started
 
-Goal: cleanly separate production package work from semantic/search experiments and playground demos.
+Goal: separate package work from semantic/search experiments and playground demos.
 
 Questions:
 
@@ -35,19 +35,19 @@ Questions:
 - what is demo-only?
 - what should be removed, moved, or documented?
 
-### 3. Public docs setup
+### 3. set up public docs
 
 Status: not started
 
-Goal: use `docs/` for public documentation powered by `farming-labs/docs`.
+Goal: use `docs/` for public docs powered by `farming-labs/docs`.
 
 Questions:
 
 - should `docs/` live in this repo or a separate docs repo?
 - which pages are public first: install, compatibility, roadmap, adapter philosophy?
-- when do agent-readable docs become a release blocker?
+- when should agent-readable docs block a release?
 
-## Backlog
+## backlog
 
 - Define GitHub labels.
 - Define Linear project/cycle structure.
@@ -55,5 +55,5 @@ Questions:
 - Create RFC template.
 - Create session log template.
 - Write ADR: `wiki is internal memory; docs is public docs`.
-- Write ADR: `adapters, not bundled infrastructure`.
+- Write ADR: `connect through adapters`.
 - Write cleanup plan for current dirty worktree.
