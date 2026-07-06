@@ -1,0 +1,36 @@
+# Better CMDK single-unit deployment (draft — untested, docker daemon was not
+# running when this was authored; validate before first use).
+# One unit: station control plane + postgres + caddy previews.
+services:
+  station:
+    image: node:22-slim
+    working_dir: /opt/master-orch
+    command: node scripts/station-server.mjs
+    volumes:
+      - master-orch-src:/opt/master-orch:ro
+      - station-state:/var/lib/master-orch
+    environment:
+      MASTER_ORCH_HOME: /var/lib/master-orch
+      MASTER_ORCH_HOST: 0.0.0.0
+      MASTER_ORCH_PORT: "43110"
+      MASTER_ORCH_TOKEN: ${MASTER_ORCH_TOKEN:?set in .env}
+      MASTER_ORCH_DB_URL: postgres://masterorch:${POSTGRES_PASSWORD:?set in .env}@db:5432/master_orch
+    depends_on: [db]
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: masterorch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: master_orch
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - station-state:/srv/state:ro
+volumes:
+  master-orch-src:
+  station-state:
+  pg-data:
