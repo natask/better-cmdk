@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Better CMDK — from user intent to deployed product</title>
+  <meta name="description" content="Better CMDK is the cmd-K that ships changes. Users describe what they want, an agent factory plans, implements and QAs it, and a preview comes back in-app for sign-off. Every deployment traces back to intents.">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fragment+Mono:ital@0;1&family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="nav-brand" href="#top">
+      <span class="nav-mark" aria-hidden="true">⌘</span>
+      <span class="nav-name">Better CMDK</span>
+    </a>
+    <nav class="nav-links" aria-label="Site">
+      <a href="#loop">The loop</a>
+      <a href="#one-unit">Why one unit</a>
+      <a href="#demo">Live demo</a>
+      <a href="#principles">Principles</a>
+    </nav>
+    <button class="nav-kbd" type="button" data-open-palette aria-label="Open the command palette">
+      <kbd>⌘</kbd><kbd>K</kbd>
+    </button>
+  </header>
+
+  <main id="top">
+
+    <!-- ============ Hero ============ -->
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <p class="kicker reveal">Better CMDK</p>
+        <h1 class="hero-title reveal">
+          From user <em class="tint-intent">intent</em><br>
+          to <em class="tint-deploy">deployed</em> product.
+        </h1>
+        <p class="hero-sub reveal">
+          The cmd-K that ships changes. A user asks for something in the palette;
+          an agent factory builds it; a preview comes back to that same user,
+          in the same app, for sign-off.
+        </p>
+        <div class="hero-actions reveal">
+          <button class="btn btn-primary" type="button" data-open-palette>
+            Try the palette <span class="btn-kbd"><kbd>⌘</kbd><kbd>K</kbd></span>
+          </button>
+          <a class="btn btn-ghost" href="https://34.187.233.150.sslip.io/dashboard" target="_blank" rel="noopener">
+            Open the live dashboard ↗
+          </a>
+        </div>
+
+        <figure class="hero-mock reveal" aria-hidden="true">
+          <div class="mock-window">
+            <div class="mock-titlebar">
+              <span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span>
+              <span class="mock-title">any-app.example — ⌘K</span>
+            </div>
+            <div class="mock-body">
+              <div class="mock-input">
+                <span class="mock-caret-label">&gt;</span>
+                <span class="mock-typed">Make the export button also send the report to Slack</span>
+                <span class="mock-caret"></span>
+              </div>
+              <div class="mock-evidence">
+                <span class="chip chip-intent">◉ last 30s of this session attached</span>
+                <span class="chip">12 actions · 1 recording</span>
+              </div>
+              <ol class="mock-trace">
+                <li class="done"><span class="trace-dot"></span>intent #482 captured</li>
+                <li class="done"><span class="trace-dot"></span>planned · implemented · QA passed</li>
+                <li class="done"><span class="trace-dot"></span>preview deployed back in-app</li>
+                <li class="live"><span class="trace-dot"></span>signed off → applied to web surface</li>
+              </ol>
+            </div>
+          </div>
+          <figcaption class="mock-caption">one request, traced from keystroke to deployment</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ The loop ============ -->
+    <section class="section" id="loop">
+      <div class="section-head reveal">
+        <p class="kicker">How it works</p>
+        <h2>The loop</h2>
+        <p class="section-lede">
+          Five moves from a wish to a shipped change. No tab-switching, no ticket
+          triage, no handoff where the request loses its context.
+        </p>
+      </div>
+      <ol class="loop-steps">
+        <li class="loop-step reveal">
+          <span class="loop-num">01</span>
+          <div class="loop-copy">
+            <h3>Hit cmd-K in any app</h3>
+            <p>The palette is embedded in the product itself. Wherever the user is, the command surface is one keystroke away.</p>
+          </div>
+        </li>
+        <li class="loop-step reveal">
+          <span class="loop-num">02</span>
+          <div class="loop-copy">
+            <h3>Describe the change</h3>
+            <p>The user says what they want in plain language. Their last actions and a recording of the session attach automatically as evidence — the request arrives with proof, not a vague repro.</p>
+          </div>
+        </li>
+        <li class="loop-step reveal">
+          <span class="loop-num">03</span>
+          <div class="loop-copy">
+            <h3>The agent factory takes it</h3>
+            <p>Agents plan the change, implement it, and QA it against the captured evidence. Humans review where it matters; the factory does the rest.</p>
+          </div>
+        </li>
+        <li class="loop-step reveal">
+          <span class="loop-num">04</span>
+          <div class="loop-copy">
+            <h3>A preview comes back in-app</h3>
+            <p>The user who asked gets a preview deployment, inside the app they asked from, and signs off on the exact thing they requested.</p>
+          </div>
+        </li>
+        <li class="loop-step reveal">
+          <span class="loop-num">05</span>
+          <div class="loop-copy">
+            <h3>Applied per surface</h3>
+            <p>Sign-off promotes the change surface by surface. Every deployment traces back to the intents that caused it — the audit trail is the product.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ One unit ============ -->
+    <section class="section" id="one-unit">
+      <div class="section-head reveal">
+        <p class="kicker">Why one unit</p>
+        <h2>Stop stitching point solutions</h2>
+        <p class="section-lede">
+          Today the intent-to-deployment path is spread across four tools that
+          don't share an object model. Better CMDK wraps them into one deployable
+          unit whose core object is a user's change request — and the deployed
+          answer to it.
+        </p>
+      </div>
+      <div class="ledger reveal">
+        <div class="ledger-row">
+          <div class="ledger-was">Session capture <span class="ledger-hint">PostHog-style replays</span></div>
+          <div class="ledger-arrow" aria-hidden="true">→</div>
+          <div class="ledger-now">Evidence attached to every request, automatically</div>
+        </div>
+        <div class="ledger-row">
+          <div class="ledger-was">Error &amp; feedback capture <span class="ledger-hint">crash reports, NPS widgets</span></div>
+          <div class="ledger-arrow" aria-hidden="true">→</div>
+          <div class="ledger-now">Intents in the same stream as everything else</div>
+        </div>
+        <div class="ledger-row">
+          <div class="ledger-was">Ticketing <span class="ledger-hint">Jira, Linear, a spreadsheet</span></div>
+          <div class="ledger-arrow" aria-hidden="true">→</div>
+          <div class="ledger-now">Change requests that carry their own context and state</div>
+        </div>
+        <div class="ledger-row">
+          <div class="ledger-was">Deployment management <span class="ledger-hint">scripts, dashboards, prayers</span></div>
+          <div class="ledger-arrow" aria-hidden="true">→</div>
+          <div class="ledger-now">Previews and applies, per surface, traced to intents</div>
+        </div>
+      </div>
+      <p class="one-unit-close reveal">
+        One deployable unit. One event log. One object that goes
+        <span class="tint-intent">in as a wish</span> and
+        <span class="tint-deploy">comes out deployed</span>.
+      </p>
+    </section>
+
+    <!-- ============ Live demo ============ -->
+    <section class="section" id="demo">
+      <div class="section-head reveal">
+        <p class="kicker">Live demo</p>
+        <h2>Try it live</h2>
+        <p class="section-lede">
+          The station dashboard below is the real control plane — comments,
+          crystallizations, tickets, runs, deployments. The palette is embedded
+          in it: press <kbd>⌘</kbd><kbd>K</kbd> (or <kbd>Ctrl</kbd><kbd>K</kbd>) once you're there.
+        </p>
+      </div>
+      <div class="demo-cards">
+        <a class="demo-card demo-card-live reveal" href="https://34.187.233.150.sslip.io/dashboard" target="_blank" rel="noopener">
+          <span class="demo-card-label">live station</span>
+          <span class="demo-card-title">34.187.233.150.sslip.io/dashboard ↗</span>
+          <span class="demo-card-sub">The hosted control plane. The palette is already embedded — cmd-K works there.</span>
+        </a>
+        <button class="demo-card demo-card-mock reveal" type="button" data-open-palette>
+          <span class="demo-card-label">right here</span>
+          <span class="demo-card-title">Open the palette on this page</span>
+          <span class="demo-card-sub">A local mock of Master CMDK — press <kbd>⌘</kbd><kbd>K</kbd> or click. Try “Request a change”.</span>
+        </button>
+      </div>
+      <p class="demo-note reveal">
+        This site is itself a Master CMDK surface: the real SDK loads from the
+        station and registers this page as <span class="mono">better-cmdk-site</span>.
+        Anonymous requests run in demo mode.
+      </p>
+    </section>
+
+    <!-- ============ Principles ============ -->
+    <section class="section" id="principles">
+      <div class="section-head reveal">
+        <p class="kicker">Principles</p>
+        <h2>What the system believes</h2>
+      </div>
+      <div class="principles-grid">
+        <article class="principle reveal">
+          <span class="principle-num">01</span>
+          <h3>Event sourcing</h3>
+          <p>
+            Capture everything. The event log is the substrate — for insight, for
+            demo videos, for demo sequences, for the QA evidence agents check
+            their work against. Nothing is derived that can't be replayed.
+          </p>
+        </article>
+        <article class="principle reveal">
+          <span class="principle-num">02</span>
+          <h3>Intent capture</h3>
+          <p>
+            Catalog what people wanted while they were using the app — users,
+            engineers, support alike. Wishes are data. The backlog writes itself
+            at the moment of friction, not in a retro three weeks later.
+          </p>
+        </article>
+        <article class="principle principle-ghost reveal" aria-label="Reserved for a future principle">
+          <span class="principle-num">03</span>
+          <h3>—</h3>
+          <p>Room for the next principle. The loop is young.</p>
+        </article>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p class="footer-line">Master CMDK is the command surface of Better CMDK.</p>
+    <div class="footer-meta">
+      <span class="mono">better-cmdk</span>
+      <a href="https://34.187.233.150.sslip.io/dashboard" target="_blank" rel="noopener">live station ↗</a>
+      <button type="button" class="footer-kbd" data-open-palette><kbd>⌘</kbd><kbd>K</kbd></button>
+    </div>
+  </footer>
+
+  <!-- ============ Palette mock (local, no network) ============ -->
+  <div class="cmdk-overlay" id="cmdk" hidden>
+    <div class="cmdk-backdrop" data-cmdk-close></div>
+    <div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Master CMDK palette (demo)">
+      <div class="cmdk-view" data-view="list">
+        <div class="cmdk-inputrow">
+          <span class="cmdk-prompt" aria-hidden="true">&gt;</span>
+          <input class="cmdk-input" type="text" placeholder="Type a command or describe a change…" autocomplete="off" spellcheck="false" aria-label="Search commands">
+          <span class="cmdk-esc mono">esc</span>
+        </div>
+        <ul class="cmdk-list" role="listbox" aria-label="Commands"></ul>
+        <div class="cmdk-footer">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> select</span>
+          <span class="cmdk-brand mono">master cmdk · demo</span>
+        </div>
+      </div>
+      <div class="cmdk-view" data-view="composer" hidden>
+        <div class="cmdk-composer-head">
+          <button type="button" class="cmdk-back" data-cmdk-back aria-label="Back to commands">←</button>
+          <span class="cmdk-composer-title">Request a change</span>
+          <span class="cmdk-esc mono">esc</span>
+        </div>
+        <label class="cmdk-label" for="cmdk-text">Describe what you want changed</label>
+        <textarea class="cmdk-textarea" id="cmdk-text" rows="3" placeholder="e.g. The export button should also send the report to Slack…"></textarea>
+        <div class="cmdk-evidence">
+          <span class="chip chip-intent">◉ last 30s of this session attached</span>
+          <span class="chip">demo · nothing leaves this page</span>
+        </div>
+        <div class="cmdk-composer-actions">
+          <button type="button" class="btn btn-ghost btn-sm" data-cmdk-back>Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" data-cmdk-send>Send request</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-region" aria-live="polite"></div>
+
+  <script src="./site.js"></script>
+  <script type="module" src="./embed.js"></script>
+</body>
+</html>
