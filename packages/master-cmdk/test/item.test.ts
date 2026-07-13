@@ -52,6 +52,7 @@ test.describe('item', async () => {
     await page.locator(`data-testid=forceMount`).click()
     await page.locator(`[cmdk-input]`).type('z')
     await expect(page.locator(`[cmdk-item]`)).toHaveCount(1)
+    await expect(page.locator(`[cmdk-empty]`)).toHaveCount(0)
   })
 })
 

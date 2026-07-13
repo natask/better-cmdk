@@ -679,8 +679,9 @@ export function App() {
               ['12', 'inputId',           'dx-input-id'],
               ['13', 'defaultSearch',     'dx-default-search'],
               ['14', 'onEmpty',           'dx-on-empty'],
-              ['15', 'IME · synthetic',   'ime'],
-              ['16', 'Modes',             'modes']
+              ['15', 'forceMount',        'force-mount-empty'],
+              ['16', 'IME · synthetic',   'ime'],
+              ['17', 'Modes',             'modes']
             ].map(([n, label, slug]) => (
               <a key={slug} href={`#${slug}`} className="pg-side__link">
                 <span>{n}</span>
@@ -1413,7 +1414,7 @@ export function App() {
             </label>
             <SxS
               oldTag="no inputId prop"
-              newTag="inputId prop"
+              newTag="inputId prop + text default"
               oldNode={<NAStub reason={<>upstream has no <code>inputId</code>; binding an external label to the input requires wrangling a ref + effect.</>} />}
               newNode={
                 <Command label="inputId demo">
@@ -1481,10 +1482,35 @@ export function App() {
             />
           </Pane>
 
-          {/* 14 IME · synthetic */}
+          {/* 15 forceMount · empty state */}
+          <Pane
+            id="force-mount-empty"
+            num="15"
+            title="forceMount · visible items suppress Empty"
+            chip="filter"
+            desc={<>The input starts at <code>zzz</code>. The pinned row is forced visible, so <code>Command.Empty</code> must stay hidden.</>}
+          >
+            <Command label="forceMount empty-state demo" defaultSearch="zzz">
+              <CmdInput placeholder='pre-filled with "zzz"…' />
+              <Command.List>
+                <Command.Empty>no results · 0 matches</Command.Empty>
+                <Command.Item forceMount value="pinned-fallback">
+                  <span className="pg-item__icon">★</span>
+                  <span className="pg-item__label">Pinned fallback</span>
+                  <span className="pg-item__meta">forceMount</span>
+                </Command.Item>
+                <Command.Item value="settings">
+                  <span className="pg-item__icon">⚙</span>
+                  <span className="pg-item__label">settings</span>
+                </Command.Item>
+              </Command.List>
+            </Command>
+          </Pane>
+
+          {/* 16 IME · synthetic */}
           <Pane
             id="ime"
-            num="15"
+            num="16"
             title="IME · onValueChange during composition"
             chip="ime"
             desc={
@@ -1589,10 +1615,10 @@ export function App() {
             />
           </Pane>
 
-          {/* 16 modes */}
+          {/* 17 modes */}
           <Pane
             id="modes"
-            num="16"
+            num="17"
             title="Modes · scoped filter + loading"
             chip="modes"
             desc={

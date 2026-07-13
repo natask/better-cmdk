@@ -212,7 +212,7 @@ type CommandProps = Children &
 
 type Context = {
   value: (id: string, value: string, keywords?: string[]) => void
-  item: (id: string, groupId?: string, modeId?: string) => () => void
+  item: (id: string, groupId?: string, modeId?: string, forceMount?: boolean) => () => void
   group: (id: string, filter?: CommandFilter, modeId?: string) => () => void
   mode: (id: string, filter?: CommandFilter, loading?: boolean) => () => void
   filter: () => boolean
@@ -227,6 +227,7 @@ type Context = {
   // Ids
   listId: string
   inputId: string
+  labelId: string
   // Refs
   listInnerRef: React.RefObject<HTMLDivElement | null>
 }
@@ -315,6 +316,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   const groupToMode = useLazyRef<Map<string, string | undefined>>(() => new Map()) // groupId → modeId
   const itemToGroup = useLazyRef<Map<string, string | undefined>>(() => new Map()) // itemId → groupId
   const itemToMode = useLazyRef<Map<string, string | undefined>>(() => new Map()) // itemId → modeId
+  const forceMountItems = useLazyRef<Set<string>>(() => new Set()) // [...force-mounted itemIds]
   const groupsInitialOrder = useLazyRef<string[]>(() => []) // [...groupIds]
   // Source-order interleaving of top-level list children (groups + ungrouped items).
   // Needed so restoreSourceOrder() can put ungrouped items back between groups
@@ -353,6 +355,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
 
   const listId = useId()
   const inputId = useId()
+  const labelId = `${inputId}-label`
 
   const listInnerRef = React.useRef<HTMLDivElement>(null)
   const hasMountedRef = React.useRef(false)
@@ -603,10 +606,12 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
       },
       // Track item lifecycle (mount, unmount)
-      item: (id, groupId, modeId) => {
+      item: (id, groupId, modeId, forceMount) => {
         allItems.current.add(id)
         itemToGroup.current.set(id, groupId)
         itemToMode.current.set(id, modeId)
+        if (forceMount) forceMountItems.current.add(id)
+        else forceMountItems.current.delete(id)
 
         // Track this item within the group
         if (groupId) {
@@ -638,6 +643,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           allItems.current.delete(id)
           itemToGroup.current.delete(id)
           itemToMode.current.delete(id)
+          forceMountItems.current.delete(id)
           state.current.filtered.items.delete(id)
           const topIdx = listInitialOrder.current.indexOf(id)
           if (topIdx !== -1) listInitialOrder.current.splice(topIdx, 1)
@@ -741,6 +747,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       },
       listId,
       inputId,
+      labelId,
       listInnerRef,
     }),
     [],
@@ -905,6 +912,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       if (ids.current.get(id)?.value !== state.current.value) continue
       const modeId = itemToMode.current.get(id)
       if (!isModeVisible(modeId, activeMode)) continue
+      if (forceMountItems.current.has(id)) return true
       if (propsRef.current.shouldFilter === false || !state.current.search) return true
       if ((state.current.filtered.items.get(id) ?? 0) > 0) return true
     }
@@ -943,9 +951,10 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       const groupFilter = groupId ? groupFilters.current.get(groupId) : undefined
       const modeId = itemToMode.current.get(id)
       const modeFilter = modeId ? modeFilters.current.get(modeId) : undefined
-      const rank = isModeVisible(modeId, activeMode) ? score(value, keywords, groupFilter, modeFilter) : 0
+      const visibleByMode = isModeVisible(modeId, activeMode)
+      const rank = visibleByMode ? score(value, keywords, groupFilter, modeFilter) : 0
       state.current.filtered.items.set(id, rank)
-      if (rank > 0) itemCount++
+      if (visibleByMode && (rank > 0 || forceMountItems.current.has(id))) itemCount++
     }
 
     // Check which groups have at least 1 item shown
@@ -1159,6 +1168,9 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
       }}
     >
+      <label cmdk-label="" id={labelId} style={visuallyHiddenStyle}>
+        {context.label}
+      </label>
       {SlottableWithNestedChildren(props, (child) => (
         <StoreContext.Provider value={store}>
           <CommandContext.Provider value={context}>{child}</CommandContext.Provider>
@@ -1184,9 +1196,7 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>((props, forwardedRef) =
   const modeId = groupContext?.mode ?? modeContext?.id
 
   useIsomorphicLayoutEffect(() => {
-    if (!forceMount) {
-      return context.item(id, groupContext?.id, modeId)
-    }
+    return context.item(id, groupContext?.id, modeId, forceMount)
   }, [forceMount, modeId])
 
   const value = useValue(id, ref, [props.value, props.children, ref], props.keywords)
@@ -1386,7 +1396,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
   const {
     onValueChange,
     debounce = 0,
-    type = 'search',
+    type = 'text',
     inputId,
     id,
     onCompositionStart: onCompositionStartProp,
@@ -1472,7 +1482,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, forwardedRe
       role="combobox"
       aria-expanded={true}
       aria-controls={context.listId}
-      aria-label={ariaLabel ?? context.label}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabel ? undefined : context.labelId}
       aria-activedescendant={selectedItemId}
       id={inputId ?? id ?? context.inputId}
       type={type}
