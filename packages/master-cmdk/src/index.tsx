@@ -213,7 +213,7 @@ type CommandProps = Children &
 type Context = {
   value: (id: string, value: string, keywords?: string[]) => void
   item: (id: string, groupId?: string, modeId?: string) => () => void
-  group: (id: string, filter?: CommandFilter, modeId?: string) => () => void
+  group: (id: string, filter?: CommandFilter, modeId?: string, parentGroupId?: string) => () => void
   mode: (id: string, filter?: CommandFilter, loading?: boolean) => () => void
   filter: () => boolean
   getMode: () => string | undefined
@@ -313,6 +313,8 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
   const modeLoadings = useLazyRef<Map<string, boolean | undefined>>(() => new Map()) // modeId → loading
   const groupFilters = useLazyRef<Map<string, CommandFilter | undefined>>(() => new Map()) // groupId → filter
   const groupToMode = useLazyRef<Map<string, string | undefined>>(() => new Map()) // groupId → modeId
+  const groupParents = useLazyRef<Map<string, string | undefined>>(() => new Map()) // groupId -> parent groupId
+  const groupChildren = useLazyRef<Map<string, Set<string>>>(() => new Map()) // groupId -> child groupIds
   const itemToGroup = useLazyRef<Map<string, string | undefined>>(() => new Map()) // itemId → groupId
   const itemToMode = useLazyRef<Map<string, string | undefined>>(() => new Map()) // itemId → modeId
   const groupsInitialOrder = useLazyRef<string[]>(() => []) // [...groupIds]
@@ -564,6 +566,17 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     sort()
     selectFirstItem()
     store.emit()
+
+    // Filter props can be backed by async side-channel scores. Re-run once
+    // after React has reconciled item children so the DOM sort is not undone
+    // by the same commit that delivered the new filter identity.
+    schedule(10, () => {
+      if (!state.current.search) return
+      filterItems()
+      sort()
+      selectFirstItem()
+      store.emit()
+    })
   }, [filter, shouldFilter, activeMode])
 
   React.useEffect(() => {
@@ -656,12 +669,27 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
         }
       },
       // Track group lifecycle (mount, unmount)
-      group: (id, filter, modeId) => {
+      group: (id, filter, modeId, parentGroupId) => {
         if (!allGroups.current.has(id)) {
           allGroups.current.set(id, new Set())
         }
         groupFilters.current.set(id, filter)
         groupToMode.current.set(id, modeId)
+        const previousParentId = groupParents.current.get(id)
+        if (previousParentId && previousParentId !== parentGroupId) {
+          const previousSiblings = groupChildren.current.get(previousParentId)
+          previousSiblings?.delete(id)
+          if (previousSiblings?.size === 0) groupChildren.current.delete(previousParentId)
+        }
+        if (parentGroupId) {
+          groupParents.current.set(id, parentGroupId)
+          if (!groupChildren.current.has(parentGroupId)) {
+            groupChildren.current.set(parentGroupId, new Set())
+          }
+          groupChildren.current.get(parentGroupId).add(id)
+        } else {
+          groupParents.current.delete(id)
+        }
         if (!groupsInitialOrder.current.includes(id)) {
           groupsInitialOrder.current.push(id)
         }
@@ -674,6 +702,13 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
           allGroups.current.delete(id)
           groupFilters.current.delete(id)
           groupToMode.current.delete(id)
+          const parentGroupId = groupParents.current.get(id)
+          if (parentGroupId) {
+            const siblings = groupChildren.current.get(parentGroupId)
+            siblings?.delete(id)
+            if (siblings?.size === 0) groupChildren.current.delete(parentGroupId)
+          }
+          groupParents.current.delete(id)
           const index = groupsInitialOrder.current.indexOf(id)
           if (index !== -1) groupsInitialOrder.current.splice(index, 1)
           const topIdx = listInitialOrder.current.indexOf(id)
@@ -790,6 +825,34 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     return modeId === active
   }
 
+  function markGroupVisible(groupId: string, activeMode: string | undefined, seen = new Set<string>()) {
+    if (seen.has(groupId) || !isModeVisible(groupToMode.current.get(groupId), activeMode)) return
+    seen.add(groupId)
+    state.current.filtered.groups.add(groupId)
+
+    const parentGroupId = groupParents.current.get(groupId)
+    if (parentGroupId) markGroupVisible(parentGroupId, activeMode, seen)
+  }
+
+  function getGroupMaxScore(
+    groupId: string,
+    scores: Map<string, number>,
+    activeMode: string | undefined,
+    seen = new Set<string>(),
+  ) {
+    if (seen.has(groupId) || !isModeVisible(groupToMode.current.get(groupId), activeMode)) return 0
+    seen.add(groupId)
+
+    let max = 0
+    allGroups.current.get(groupId)?.forEach((itemId) => {
+      max = Math.max(scores.get(itemId) ?? 0, max)
+    })
+    groupChildren.current.get(groupId)?.forEach((childGroupId) => {
+      max = Math.max(getGroupMaxScore(childGroupId, scores, activeMode, seen), max)
+    })
+    return max
+  }
+
   /**
    * Snaps group and item DOM order back to source-registration order.
    * Fixes upstream cmdk #264 / #375: after a search clears, items that
@@ -846,19 +909,11 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
     // Sort the groups
     const groups: [string, number][] = []
     state.current.filtered.groups.forEach((value) => {
-      const items = allGroups.current.get(value)
       if (!isModeVisible(groupToMode.current.get(value))) {
         return
       }
 
-      // Get the maximum score of the group's items
-      let max = 0
-      items.forEach((item) => {
-        const score = scores.get(item)
-        max = Math.max(score, max)
-      })
-
-      groups.push([value, max])
+      groups.push([value, getGroupMaxScore(value, scores, state.current.mode)])
     })
 
     // Sort items within groups to bottom
@@ -955,7 +1010,7 @@ const Command = React.forwardRef<HTMLDivElement, CommandProps>((props, forwarded
       }
       for (const itemId of group) {
         if (state.current.filtered.items.get(itemId) > 0) {
-          state.current.filtered.groups.add(groupId)
+          markGroupVisible(groupId, activeMode)
           break
         }
       }
@@ -1288,8 +1343,9 @@ const Group = React.forwardRef<HTMLDivElement, GroupProps>((props, forwardedRef)
   const ref = React.useRef<HTMLDivElement>(null)
   const headingRef = React.useRef<HTMLDivElement>(null)
   const headingId = useId()
+  const parentGroupContext = React.useContext(GroupContext)
   const modeContext = React.useContext(ModeContext)
-  const modeId = modeContext?.id
+  const modeId = parentGroupContext?.mode ?? modeContext?.id
   const context = useCommand()
   const render = useCmdk((state) => {
     const visibleByMode = !modeId || !state.mode ? true : modeId === state.mode
@@ -1301,8 +1357,8 @@ const Group = React.forwardRef<HTMLDivElement, GroupProps>((props, forwardedRef)
   })
 
   useIsomorphicLayoutEffect(() => {
-    return context.group(id, groupFilter, modeId)
-  }, [id, modeId, groupFilter])
+    return context.group(id, groupFilter, modeId, parentGroupContext?.id)
+  }, [id, modeId, groupFilter, parentGroupContext?.id])
 
   useValue(id, ref, [props.value, props.heading, headingRef])
 
@@ -1560,6 +1616,7 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
       }
       context.listInnerRef.current?.querySelectorAll<HTMLElement>(ITEM_SELECTOR).forEach((item) => {
         item.style.display = ''
+        item.style.minHeight = ''
       })
       syncRef.current = null
       return
@@ -1569,6 +1626,9 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
     const sizer = context.listInnerRef.current
     if (!list || !sizer) return
 
+    let animationFrame = 0
+    let lastSyncedScrollTop = list.scrollTop
+    sizer.style.overflowAnchor = 'none'
     const syncVirtualWindow = (fromSelection = false) => {
       const items = Array.from(sizer.querySelectorAll<HTMLElement>(ITEM_SELECTOR))
       if (items.length === 0) {
@@ -1585,7 +1645,8 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
       let start = Math.max(0, Math.floor(list.scrollTop / estHeight) - overscan)
       let end = Math.min(items.length - 1, Math.ceil((list.scrollTop + list.clientHeight) / estHeight) + overscan)
 
-      if (fromSelection) {
+      const scrollChangedSinceLastSync = list.scrollTop !== lastSyncedScrollTop
+      if (fromSelection && !scrollChangedSinceLastSync) {
         const sid = selectedItemIdRef.current
         const selectedIndex = sid ? items.findIndex((item) => item.id === sid) : -1
         if (selectedIndex !== -1 && (selectedIndex < start || selectedIndex > end)) {
@@ -1598,10 +1659,12 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
       items.forEach((item, index) => {
         const isVisible = index >= start && index <= end
         item.style.display = isVisible ? '' : 'none'
+        item.style.minHeight = `${estHeight}px`
       })
 
       sizer.style.paddingTop = `${start * estHeight}px`
       sizer.style.paddingBottom = `${Math.max(items.length - end - 1, 0) * estHeight}px`
+      lastSyncedScrollTop = list.scrollTop
     }
     syncRef.current = syncVirtualWindow
 
@@ -1609,12 +1672,25 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
     const onScroll = () => syncVirtualWindow(false)
     list.addEventListener('scroll', onScroll, { passive: true })
 
+    const watchScrollTop = () => {
+      if (list.scrollTop !== lastSyncedScrollTop) {
+        syncVirtualWindow(false)
+      }
+      animationFrame = requestAnimationFrame(watchScrollTop)
+    }
+    animationFrame = requestAnimationFrame(watchScrollTop)
+
     const mutationObserver = new MutationObserver(() => syncVirtualWindow(false))
     mutationObserver.observe(sizer, { childList: true, subtree: true })
 
     return () => {
+      cancelAnimationFrame(animationFrame)
       list.removeEventListener('scroll', onScroll)
       mutationObserver.disconnect()
+      sizer.style.overflowAnchor = ''
+      sizer.querySelectorAll<HTMLElement>(ITEM_SELECTOR).forEach((item) => {
+        item.style.minHeight = ''
+      })
       syncRef.current = null
     }
   }, [virtualized, itemHeight, overscan])

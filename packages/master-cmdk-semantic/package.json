@@ -11,6 +11,9 @@
     "README.md",
     "LICENSE"
   ],
+  "bin": {
+    "potion-score": "./dist/potion-cli.mjs"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -24,17 +27,39 @@
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.mjs",
       "require": "./dist/vite.js"
+    },
+    "./potion": {
+      "types": "./dist/potion.d.ts",
+      "import": "./dist/potion.mjs",
+      "require": "./dist/potion.js"
+    },
+    "./qwen": {
+      "types": "./dist/qwen.d.ts",
+      "import": "./dist/qwen.mjs",
+      "require": "./dist/qwen.js"
+    },
+    "./embedding": {
+      "types": "./dist/embedding.d.ts",
+      "import": "./dist/embedding.mjs",
+      "require": "./dist/embedding.js"
+    },
+    "./huggingface": {
+      "types": "./dist/huggingface.d.ts",
+      "import": "./dist/huggingface.mjs",
+      "require": "./dist/huggingface.js"
     }
   },
   "scripts": {
     "build": "tsup --clean",
     "dev": "tsup --watch",
+    "potion:score": "node dist/potion-cli.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prepublishOnly": "pnpm run build",
     "prepack": "pnpm run build"
   },
   "dependencies": {
+    "@huggingface/inference": "^4.13.15",
     "master-cmdk-core": "workspace:*"
   },
   "devDependencies": {

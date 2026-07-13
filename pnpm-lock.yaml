@@ -38,9 +38,6 @@ importers:
       master-cmdk:
         specifier: workspace:*
         version: link:../../packages/master-cmdk
-      master-cmdk-semantic:
-        specifier: workspace:*
-        version: link:../../packages/master-cmdk-semantic
       react:
         specifier: ^18.3.0
         version: 18.3.1
@@ -81,6 +78,9 @@ importers:
       master-cmdk-core:
         specifier: workspace:*
         version: link:../master-cmdk-core
+      master-cmdk-semantic:
+        specifier: workspace:*
+        version: link:../master-cmdk-semantic
       react:
         specifier: ^18.3.0 || ^19.0.0
         version: 18.3.1
@@ -118,6 +118,9 @@ importers:
 
   packages/master-cmdk-semantic:
     dependencies:
+      '@huggingface/inference':
+        specifier: ^4.13.15
+        version: 4.13.15
       master-cmdk-core:
         specifier: workspace:*
         version: link:../master-cmdk-core
@@ -761,6 +764,17 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@huggingface/inference@4.13.15':
+    resolution: {integrity: sha512-V7B13KFDVhYkQqgx8vpMcmtEG+PoePlh65IUvpphTTItHAq6zRLcsS4torh1QavUaT+6nEwho4wFXzBQNGBwKQ==}
+    engines: {node: '>=18'}
+
+  '@huggingface/jinja@0.5.9':
+    resolution: {integrity: sha512-uWTG+l3VJRsl7EXxYizuL3P+cCPoc3cRqbWWRcQN0FhejRfbdq0RNhCmbY/YDtnTcz9icdLYuLDjsnz4d8JMuw==}
+    engines: {node: '>=18'}
+
+  '@huggingface/tasks@0.19.90':
+    resolution: {integrity: sha512-nfV9luJbvwGQ/5oKXkKhCV9h4X7mwh1YaGG3ORd6UMLDSwr1OFSSatcBX0O9OtBtmNK19aGSjbLFqqgcIR6+IA==}
 
   '@inquirer/external-editor@1.0.3':
     resolution: {integrity: sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA==}
@@ -2770,6 +2784,15 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.7':
     optional: true
+
+  '@huggingface/inference@4.13.15':
+    dependencies:
+      '@huggingface/jinja': 0.5.9
+      '@huggingface/tasks': 0.19.90
+
+  '@huggingface/jinja@0.5.9': {}
+
+  '@huggingface/tasks@0.19.90': {}
 
   '@inquirer/external-editor@1.0.3(@types/node@22.19.17)':
     dependencies:

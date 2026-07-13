@@ -112,6 +112,22 @@ const Page = () => {
           </Command.List>
         </Command>
       </div>
+
+      <div data-testid="nested-group-demo">
+        <Command>
+          <Command.Input data-testid="nested-group-input" placeholder="Type needle then clear..." />
+          <Command.List>
+            <Command.Group heading="Parent">
+              <Command.Group heading="Child">
+                <Command.Item>Nested Needle</Command.Item>
+              </Command.Group>
+            </Command.Group>
+            <Command.Group heading="Sibling">
+              <Command.Item>Sibling Haystack</Command.Item>
+            </Command.Group>
+          </Command.List>
+        </Command>
+      </div>
     </div>
   )
 }

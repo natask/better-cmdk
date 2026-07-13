@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import { commandScore } from 'master-cmdk-core'
-import { cosineScore, createSemanticCommandScore, createSemanticScore } from './index'
+import { cosineScore, createSemanticCommandScore, createSemanticScore, signedExponentialScore } from './index'
 
 describe('semantic scoring', () => {
   const vectors = {
@@ -9,10 +9,18 @@ describe('semantic scoring', () => {
     'cmd-prs': [0, 0, 1],
   }
 
-  test('computes cosine scores in the cmdk score range', () => {
+  test('computes signed cosine scores', () => {
     expect(cosineScore([1, 0], [1, 0])).toBe(1)
-    expect(cosineScore([1, 0], [-1, 0])).toBe(0)
+    expect(cosineScore([1, 0], [-1, 0])).toBe(-1)
     expect(cosineScore(undefined, [1, 0])).toBe(0)
+  })
+
+  test('pushes neutral semantic scores to zero and emphasizes edges', () => {
+    expect(signedExponentialScore(0)).toBe(0)
+    expect(signedExponentialScore(0.1)).toBe(0)
+    expect(signedExponentialScore(-0.1)).toBe(0)
+    expect(signedExponentialScore(0.8)).toBeGreaterThan(signedExponentialScore(0.4))
+    expect(signedExponentialScore(-0.8)).toBeLessThan(signedExponentialScore(-0.4))
   })
 
   test('embeds a query once and compares it against build-time command vectors', async () => {
@@ -28,6 +36,25 @@ describe('semantic scoring', () => {
 
     await semantic.setSearch('ship app')
     expect(embedQuery).toHaveBeenCalledTimes(1)
+  })
+
+  test('scores the best result across query variants', async () => {
+    const embedQuery = vi.fn((query: string) => query === 'linear issue' ? [0, 1, 0] : [0, 0, 0])
+    const semantic = createSemanticScore({
+      vectors,
+      embedQuery,
+      queryVariants: search => search === 'lienar bug' ? ['linear issue'] : [],
+    })
+
+    await semantic.setSearch('lienar bug')
+
+    expect(embedQuery).toHaveBeenCalledTimes(2)
+    expect(semantic.semanticScore('cmd-issue', 'lienar bug')).toBeGreaterThan(
+      semantic.semanticScore('cmd-deploy', 'lienar bug'),
+    )
+
+    await semantic.setSearch('lienar bug')
+    expect(embedQuery).toHaveBeenCalledTimes(2)
   })
 
   test('keeps the cmdk filter sync while semantic work is cached outside it', async () => {

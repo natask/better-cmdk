@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "master-cmdk": "workspace:*",
-    "master-cmdk-semantic": "workspace:*",
     "cmdk": "^1.1.1",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"

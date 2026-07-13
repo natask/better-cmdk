@@ -114,4 +114,24 @@ test.describe('group', async () => {
     await expect(demo.locator(`[cmdk-group][data-value="Default Match"]`)).not.toBeVisible()
     await expect(demo.locator(`[cmdk-item]`)).toHaveCount(2)
   })
+
+  test('nested groups stay visible when a descendant item matches', async ({ page }) => {
+    const input = page.locator(`[data-testid="nested-group-input"]`)
+    const demo = page.locator(`[data-testid="nested-group-demo"]`)
+    const visibleHeadings = demo.locator(`[cmdk-group]:visible > [cmdk-group-heading]`)
+
+    await expect(visibleHeadings).toHaveText(['Parent', 'Child', 'Sibling'])
+
+    await input.fill('needle')
+
+    await expect(demo.locator(`[cmdk-group][data-value="Parent"]`)).toBeVisible()
+    await expect(demo.locator(`[cmdk-group][data-value="Child"]`)).toBeVisible()
+    await expect(demo.locator(`[cmdk-group][data-value="Sibling"]`)).not.toBeVisible()
+    await expect(demo.getByText('Nested Needle')).toBeVisible()
+    await expect(visibleHeadings).toHaveText(['Parent', 'Child'])
+
+    await input.fill('')
+
+    await expect(visibleHeadings).toHaveText(['Parent', 'Child', 'Sibling'])
+  })
 })

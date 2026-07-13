@@ -19,12 +19,47 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.mjs",
+      "require": "./dist/core.js"
+    },
+    "./semantic": {
+      "types": "./dist/semantic.d.ts",
+      "import": "./dist/semantic.mjs",
+      "require": "./dist/semantic.js"
+    },
+    "./semantic/potion": {
+      "types": "./dist/semantic/potion.d.ts",
+      "import": "./dist/semantic/potion.mjs",
+      "require": "./dist/semantic/potion.js"
+    },
+    "./semantic/qwen": {
+      "types": "./dist/semantic/qwen.d.ts",
+      "import": "./dist/semantic/qwen.mjs",
+      "require": "./dist/semantic/qwen.js"
+    },
+    "./semantic/embedding": {
+      "types": "./dist/semantic/embedding.d.ts",
+      "import": "./dist/semantic/embedding.mjs",
+      "require": "./dist/semantic/embedding.js"
+    },
+    "./semantic/huggingface": {
+      "types": "./dist/semantic/huggingface.d.ts",
+      "import": "./dist/semantic/huggingface.mjs",
+      "require": "./dist/semantic/huggingface.js"
+    },
+    "./semantic/vite": {
+      "types": "./dist/semantic/vite.d.ts",
+      "import": "./dist/semantic/vite.mjs",
+      "require": "./dist/semantic/vite.js"
     }
   },
   "scripts": {
-    "build": "pnpm -F master-cmdk-core build && tsup src/index.tsx --clean",
-    "dev": "tsup src/index.tsx --watch",
-    "typecheck": "pnpm -F master-cmdk-core build && tsc --noEmit",
+    "build": "pnpm -F master-cmdk-core build && pnpm -F master-cmdk-semantic build && tsup src/index.tsx src/core.ts src/semantic.ts src/semantic/potion.ts src/semantic/qwen.ts src/semantic/embedding.ts src/semantic/huggingface.ts src/semantic/vite.ts --clean",
+    "dev": "tsup src/index.tsx src/core.ts src/semantic.ts src/semantic/potion.ts src/semantic/qwen.ts src/semantic/embedding.ts src/semantic/huggingface.ts src/semantic/vite.ts --watch",
+    "typecheck": "pnpm -F master-cmdk-core build && pnpm -F master-cmdk-semantic build && tsc --noEmit",
     "test": "pnpm -F master-cmdk-core build && vitest run",
     "test:e2e": "../../node_modules/.bin/playwright test",
     "prepublishOnly": "pnpm run build",
@@ -40,7 +75,8 @@
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-id": "^1.1.0",
     "@radix-ui/react-primitive": "^2.0.2",
-    "master-cmdk-core": "workspace:*"
+    "master-cmdk-core": "workspace:*",
+    "master-cmdk-semantic": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

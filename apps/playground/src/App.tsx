@@ -1,9 +1,14 @@
 import { Component, forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Command } from 'master-cmdk'
-import { createSemanticCommandScore } from 'master-cmdk-semantic'
-import type { SemanticCommandScore } from 'master-cmdk-semantic'
+import { commandScore } from 'master-cmdk/core'
+import { cosineScore, createSemanticCommandScore } from 'master-cmdk/semantic'
+import type { SemanticCommandScore } from 'master-cmdk/semantic'
+import { createPotionQueryEmbedder } from 'master-cmdk/semantic/potion'
 import { Command as OldCommand } from 'cmdk'
+import { model as matcherModel, modelAssets as matcherModelAssets, vectors as matcherVectors } from 'virtual:master-cmdk/semantic-vectors'
+import { semanticCommands } from './semantic-commands'
+import type { SemanticCommand } from './semantic-commands'
 
 // --- data ---------------------------------------------------------------
 
@@ -309,112 +314,23 @@ function playComposition(input: HTMLInputElement, updates: string[], final: stri
   input.dispatchEvent(makeInputEvent(false))
 }
 
-const MATCHER_SAMPLES = [
-  {
-    value: 'cmd-issue',
-    label: 'Create Linear issue',
-    note: 'vector hit for bug/ticket intent',
-  },
-  {
-    value: 'cmd-prs',
-    label: 'Open GitHub pull requests',
-    note: 'vector hit for code review intent',
-  },
-  {
-    value: 'cmd-deploy',
-    label: 'Deploy production',
-    note: 'vector hit for ship/publish intent',
-  },
-  {
-    value: 'cmd-docs',
-    label: 'Search documentation',
-    note: 'vector hit for docs/help intent',
-  },
-  {
-    value: 'cmd-theme',
-    label: 'Toggle dark mode',
-    note: 'lexical + vector hit for theme intent',
-  },
-  {
-    value: 'cmd-debug',
-    label: 'Explain error with AI',
-    note: 'vector hit for failure/debug intent',
-  },
-  {
-    value: 'cmd-cafe',
-    label: 'Open Café menu',
-    note: 'diacritic folding + vector hit for coffee intent',
-  },
-]
+const MATCHER_SAMPLES = semanticCommands
+const MATCHER_QUERY_EXAMPLES = ['ship app', 'report bug', 'review code', 'why failed', 'go live', 'something broke', 'inspect changes']
+const MATCHER_SEMANTIC_ASSERTIONS = [
+  { query: 'ship app', expected: 'Deploy production', alias: 'publish the live app' },
+  { query: 'report bug', expected: 'Create Linear issue', alias: 'open a tracker ticket' },
+  { query: 'review code', expected: 'Open GitHub pull requests', alias: 'inspect pending diffs' },
+  { query: 'why failed', expected: 'Explain error with AI', alias: 'diagnose runtime failure' },
+] as const
+const embedMatcherQuery = createPotionQueryEmbedder({ model: matcherModel, urls: matcherModelAssets })
 
-const MATCHER_QUERY_EXAMPLES = ['ship app', 'report bug', 'fix crash', 'publish site', 'make ticket', 'review code', 'why failed']
-
-const MATCHER_VECTORS = {
-  'cmd-deploy': [1, 0, 0, 0, 0, 0, 0],
-  'cmd-issue': [0, 1, 0, 0, 0, 0, 0],
-  'cmd-prs': [0, 0, 1, 0, 0, 0, 0],
-  'cmd-docs': [0, 0, 0, 1, 0, 0, 0],
-  'cmd-theme': [0, 0, 0, 0, 1, 0, 0],
-  'cmd-debug': [0, 0, 0, 0, 0, 1, 0],
-  'cmd-cafe': [0, 0, 0, 0, 0, 0, 1],
-} satisfies Record<string, number[]>
-
-const MATCHER_QUERY_TERMS = {
-  deploy: [1, 0, 0, 0, 0, 0, 0],
-  ship: [1, 0, 0, 0, 0, 0, 0],
-  publish: [1, 0, 0, 0, 0, 0, 0],
-  release: [1, 0, 0, 0, 0, 0, 0],
-  live: [1, 0, 0, 0, 0, 0, 0],
-  site: [1, 0, 0, 0, 0, 0, 0],
-  app: [1, 0, 0, 0, 0, 0, 0],
-  issue: [0, 1, 0, 0, 0, 0, 0],
-  bug: [0, 1, 0, 0, 0, 0, 0],
-  ticket: [0, 1, 0, 0, 0, 0, 0],
-  report: [0, 1, 0, 0, 0, 0, 0],
-  linear: [0, 1, 0, 0, 0, 0, 0],
-  review: [0, 0, 1, 0, 0, 0, 0],
-  code: [0, 0, 1, 0, 0, 0, 0],
-  pull: [0, 0, 1, 0, 0, 0, 0],
-  pr: [0, 0, 1, 0, 0, 0, 0],
-  docs: [0, 0, 0, 1, 0, 0, 0],
-  documentation: [0, 0, 0, 1, 0, 0, 0],
-  help: [0, 0, 0, 1, 0, 0, 0],
-  api: [0, 0, 0, 1, 0, 0, 0],
-  dark: [0, 0, 0, 0, 1, 0, 0],
-  theme: [0, 0, 0, 0, 1, 0, 0],
-  appearance: [0, 0, 0, 0, 1, 0, 0],
-  failed: [0, 0, 0, 0, 0, 1, 0],
-  failure: [0, 0, 0, 0, 0, 1, 0],
-  crash: [0, 0, 0, 0, 0, 1, 0],
-  error: [0, 0, 0, 0, 0, 1, 0],
-  debug: [0, 0, 0, 0, 0, 1, 0],
-  why: [0, 0, 0, 0, 0, 1, 0],
-  cafe: [0, 0, 0, 0, 0, 0, 1],
-  coffee: [0, 0, 0, 0, 0, 0, 1],
-} satisfies Record<string, number[]>
-
-function embedMatcherQuery(query: string): number[] {
-  const vector = new Array(7).fill(0)
-  const terms = query
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean)
-
-  for (const term of terms) {
-    const termVector = MATCHER_QUERY_TERMS[term as keyof typeof MATCHER_QUERY_TERMS]
-    if (!termVector) continue
-    for (let index = 0; index < vector.length; index += 1) {
-      vector[index] += termVector[index]
-    }
-  }
-
-  return vector
+function matcherKeywords(item: SemanticCommand): string[] {
+  return [item.label, ...(item.aliases ?? [])]
 }
 
-function tierLabel(score: number): string {
+function tierLabel(score: number, source?: string): string {
   if (score === 0) return '—'
+  if (source === 'vector') return 'semantic'
   if (score >= 1) return 'exact'
   if (score >= 0.9) return 'prefix'
   if (score >= 0.8) return 'word-prefix'
@@ -434,12 +350,13 @@ function MatcherTable({
 }) {
   const rows = useMemo(() => {
     return MATCHER_SAMPLES.map((s) => {
-      const labelScore = search ? semantic.filter(s.label, search) : 0
+      const keywords = matcherKeywords(s)
+      const lexicalScore = search ? commandScore(s.value, search, keywords) : 0
       const vectorScore = search ? semantic.semanticScore(s.value, search) : 0
       return {
         ...s,
-        score: search ? semantic.filter(s.value, search, [s.label]) : 0,
-        source: vectorScore > labelScore ? 'vector' : labelScore > 0 ? 'label' : '—',
+        score: search ? semantic.filter(s.value, search, keywords) : 0,
+        source: lexicalScore > 0 ? 'lexical' : vectorScore > 0 ? 'vector' : '—',
       }
     }).sort((a, b) => b.score - a.score)
   }, [search, semantic, semanticVersion])
@@ -456,9 +373,51 @@ function MatcherTable({
         <div className="pg-matcher__row" key={r.label} data-score={r.score > 0 ? 'hit' : 'miss'}>
           <span>{r.label}</span>
           <span>{r.source}</span>
-          <span>{tierLabel(r.score)}</span>
+          <span>{tierLabel(r.score, r.source)}</span>
           <span>{r.score.toFixed(2)}</span>
           <span style={{ color: 'var(--text-mute)' }}>{r.note}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SemanticSanityTable() {
+  const [rows, setRows] = useState(() => MATCHER_SEMANTIC_ASSERTIONS.map((item) => ({ ...item, score: 0 })))
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void Promise.all(
+      MATCHER_SEMANTIC_ASSERTIONS.map(async (item) => {
+        const [queryVector, aliasVector] = await Promise.all([
+          embedMatcherQuery(item.query, controller.signal),
+          embedMatcherQuery(item.alias, controller.signal),
+        ])
+        return { ...item, score: cosineScore(queryVector, aliasVector) }
+      }),
+    ).then((nextRows) => {
+      if (!controller.signal.aborted) setRows(nextRows)
+    })
+
+    return () => controller.abort()
+  }, [])
+
+  return (
+    <div className="pg-matcher pg-matcher--sanity" data-testid="semantic-sanity">
+      <div className="pg-matcher__head">
+        <span>query</span>
+        <span>semantic alias</span>
+        <span>expected</span>
+        <span>cosine</span>
+        <span>check</span>
+      </div>
+      {rows.map((row) => (
+        <div className="pg-matcher__row" key={row.query} data-score={row.score >= 0.5 ? 'hit' : 'miss'}>
+          <span>{row.query}</span>
+          <span>{row.alias}</span>
+          <span>{row.expected}</span>
+          <span>{row.score.toFixed(2)}</span>
+          <span style={{ color: 'var(--text-mute)' }}>query and alias are embedded, not passed as cmdk keywords</span>
         </div>
       ))}
     </div>
@@ -511,6 +470,7 @@ export function App() {
   const [perfBuilt, setPerfBuilt] = useState(0)
   const [perfBuilding, setPerfBuilding] = useState(false)
   const [groupFilterSearch, setGroupFilterSearch] = useState('')
+  const [nestedGroupSearch, setNestedGroupSearch] = useState('')
   const [asyncItems, setAsyncItems] = useState(asyncDemoItems)
   const [asyncLoading, setAsyncLoading] = useState(false)
   const [asyncStatus, setAsyncStatus] = useState('idle')
@@ -535,8 +495,12 @@ export function App() {
   const scrollCounter = useScrollIntoViewCounter()
   const semanticMatcher = useMemo(() => {
     return createSemanticCommandScore({
-      vectors: MATCHER_VECTORS,
-      embedQuery: (query, signal) => signal.aborted ? [] : embedMatcherQuery(query),
+      vectors: matcherVectors,
+      embedQuery: embedMatcherQuery,
+      blend: ({ lexical, semantic }) => {
+        if (lexical > 0) return lexical
+        return semantic > 0 ? semantic * 0.49 : 0
+      },
     })
   }, [])
   const matcherFilter = useMemo(() => {
@@ -637,7 +601,7 @@ export function App() {
           <span className="dot" />
           <span>playground · v1.0 · master-cmdk</span>
           <span style={{ color: 'var(--text-mute)' }}>—</span>
-          <span>11 demos loaded</span>
+          <span>17 demos loaded</span>
         </div>
         <h1 className="pg-hero__title">
           The command palette,<br />
@@ -680,7 +644,8 @@ export function App() {
               ['13', 'defaultSearch',     'dx-default-search'],
               ['14', 'onEmpty',           'dx-on-empty'],
               ['15', 'IME · synthetic',   'ime'],
-              ['16', 'Modes',             'modes']
+              ['16', 'Modes',             'modes'],
+              ['17', 'Nested groups',     'nested-groups']
             ].map(([n, label, slug]) => (
               <a key={slug} href={`#${slug}`} className="pg-side__link">
                 <span>{n}</span>
@@ -696,44 +661,83 @@ export function App() {
           <Pane
             id="search"
             num="01"
-            title="Search stack · default filter"
+            title="Search stack · lexical vs semantic"
             chip="search"
             desc={
               <>
                 The first demo is the bottleneck: meaningful command search. Type <code>report bug</code>,{' '}
                 <code>ship app</code>, <code>review code</code>, <code>find docs</code>, <code>dark mode</code>,{' '}
-                <code>cafe</code>, or <code>lnr</code>. Opaque command values are scored by lexical
-                the default text matcher plus a client vector score map.
+                <code>go live</code>, or <code>something broke</code>. The left side is upstream <code>cmdk</code>
+                with normal aliases. The right side is <code>master-cmdk</code> with a merged exact + fuzzy +
+                semantic ranker.
               </>
             }
             foot={
               <>
-                <span><b style={{ color: 'var(--text)' }}>Shape:</b> command vectors are available before runtime; query embedding updates the score map, and the cmdk filter remains <code>(value, search, keywords) =&gt; number</code>.</span>
+                <span><b style={{ color: 'var(--text)' }}>Shape:</b> aliases are real cmdk <code>keywords</code> on both sides. <code>master-cmdk</code> embeds label + description + aliases and merges scores as exact/alias/fuzzy first, semantic fallback second.</span>
               </>
             }
           >
             <div className="pg-matcher-shell">
-              <Command label="Semantic command search" filter={matcherFilter}>
-                <CmdInput
-                  value={matcherSearch}
-                  onValueChange={setMatcherSearch}
-                  placeholder='try "report bug", "ship app", "review code", "dark mode", "cafe"…'
-                  type="search"
-                  autoComplete="off"
-                  spellCheck={false}
-                  hint={<Kbd>vector</Kbd>}
-                />
-                <Command.List>
-                  <Command.Empty>no results · 0 matches</Command.Empty>
-                  {MATCHER_SAMPLES.map((item) => (
-                    <Command.Item key={item.value} value={item.value} keywords={[item.label]}>
-                      <span className="pg-item__icon">◆</span>
-                      <span className="pg-item__label">{item.label}</span>
-                      <span className="pg-item__meta">{item.note}</span>
-                    </Command.Item>
-                  ))}
-                </Command.List>
-              </Command>
+              <SxS
+                oldLabel="cmdk@1.1.1 · lexical aliases"
+                newLabel="master-cmdk · merged semantic"
+                oldTag="exact + fuzzy + aliases"
+                newTag="Potion vector source"
+                oldNode={
+                  <div data-testid="lexical-search-panel">
+                    <OldCommand label="Upstream cmdk lexical command search">
+                      <div className="pg-input">
+                        <span className="pg-input__glyph" aria-hidden>❯</span>
+                        <OldCommand.Input
+                        value={matcherSearch}
+                        onValueChange={setMatcherSearch}
+                        placeholder='same query, no semantic vectors…'
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-label="Upstream cmdk lexical command search"
+                        />
+                        <div className="pg-input__kbd"><Kbd>cmdk</Kbd></div>
+                      </div>
+                      <OldCommand.List>
+                        <OldCommand.Empty>no lexical result</OldCommand.Empty>
+                        {MATCHER_SAMPLES.map((item) => (
+                          <OldCommand.Item key={item.value} value={item.value} keywords={matcherKeywords(item)}>
+                            <span className="pg-item__icon">◇</span>
+                            <span className="pg-item__label">{item.label}</span>
+                            <span className="pg-item__meta">exact + fuzzy + aliases</span>
+                          </OldCommand.Item>
+                        ))}
+                      </OldCommand.List>
+                    </OldCommand>
+                  </div>
+                }
+                newNode={
+                  <div data-testid="semantic-search-panel">
+                    <Command label="Semantic command search" filter={matcherFilter}>
+                      <CmdInput
+                        value={matcherSearch}
+                        onValueChange={setMatcherSearch}
+                        placeholder='same query, with semantic vectors…'
+                        type="search"
+                        autoComplete="off"
+                        spellCheck={false}
+                        hint={<Kbd>potion</Kbd>}
+                      />
+                      <Command.List>
+                        <Command.Empty>no semantic result · 0 matches</Command.Empty>
+                        {MATCHER_SAMPLES.map((item) => (
+                          <Command.Item key={item.value} value={item.value} keywords={matcherKeywords(item)}>
+                            <span className="pg-item__icon">◆</span>
+                            <span className="pg-item__label">{item.label}</span>
+                            <span className="pg-item__meta">{item.note}</span>
+                          </Command.Item>
+                        ))}
+                      </Command.List>
+                    </Command>
+                  </div>
+                }
+              />
               <div className="pg-query-examples">
                 {MATCHER_QUERY_EXAMPLES.map((query) => (
                   <button
@@ -747,6 +751,7 @@ export function App() {
                 ))}
               </div>
               <MatcherTable search={matcherSearch} semantic={semanticMatcher} semanticVersion={semanticVersion} />
+              <SemanticSanityTable />
             </div>
           </Pane>
 
@@ -1651,6 +1656,72 @@ export function App() {
                         ))}
                       </Command.Group>
                     </Command.Mode>
+                  </Command.List>
+                </Command>
+              }
+            />
+          </Pane>
+
+          {/* 17 nested groups */}
+          <Pane
+            id="nested-groups"
+            num="17"
+            title="Nested groups · descendant visibility"
+            chip="grouping"
+            desc={<>Type <code>needle</code>. The matching item lives under <code>Parent / Child</code>, so both ancestor groups must remain visible.</>}
+          >
+            <SxS
+              oldTag="parent hides child"
+              newTag="descendant bubbles visibility"
+              oldNode={
+                <OldCommand label="Old Nested Group Demo">
+                  <OldCommand.Input
+                    value={nestedGroupSearch}
+                    onValueChange={setNestedGroupSearch}
+                    placeholder='type "needle"…'
+                  />
+                  <OldCommand.List>
+                    <OldCommand.Empty>no results · parent group hidden</OldCommand.Empty>
+                    <OldCommand.Group heading="Parent">
+                      <OldCommand.Group heading="Child">
+                        <OldCommand.Item>
+                          <span className="pg-item__icon">▸</span>
+                          <span className="pg-item__label">Nested Needle</span>
+                        </OldCommand.Item>
+                      </OldCommand.Group>
+                    </OldCommand.Group>
+                    <OldCommand.Group heading="Sibling">
+                      <OldCommand.Item>
+                        <span className="pg-item__icon">·</span>
+                        <span className="pg-item__label">Sibling Haystack</span>
+                      </OldCommand.Item>
+                    </OldCommand.Group>
+                  </OldCommand.List>
+                </OldCommand>
+              }
+              newNode={
+                <Command label="Nested Group Demo">
+                  <CmdInput
+                    value={nestedGroupSearch}
+                    onValueChange={setNestedGroupSearch}
+                    placeholder='type "needle"…'
+                  />
+                  <Command.List>
+                    <Command.Empty>no results · 0 matches</Command.Empty>
+                    <Command.Group heading="Parent">
+                      <Command.Group heading="Child">
+                        <Command.Item>
+                          <span className="pg-item__icon">▸</span>
+                          <span className="pg-item__label">Nested Needle</span>
+                        </Command.Item>
+                      </Command.Group>
+                    </Command.Group>
+                    <Command.Group heading="Sibling">
+                      <Command.Item>
+                        <span className="pg-item__icon">·</span>
+                        <span className="pg-item__label">Sibling Haystack</span>
+                      </Command.Item>
+                    </Command.Group>
                   </Command.List>
                 </Command>
               }
