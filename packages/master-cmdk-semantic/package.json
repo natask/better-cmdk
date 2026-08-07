@@ -22,9 +22,14 @@
       "require": "./dist/index.js"
     },
     "./vite": {
-      "types": "./dist/vite.d.ts",
-      "import": "./dist/vite.mjs",
-      "require": "./dist/vite.js"
+      "import": {
+        "types": "./dist/vite.d.mts",
+        "default": "./dist/vite.mjs"
+      },
+      "require": {
+        "types": "./dist/vite.d.ts",
+        "default": "./dist/vite.js"
+      }
     }
   },
   "scripts": {

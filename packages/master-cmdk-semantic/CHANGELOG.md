@@ -4,7 +4,7 @@
 
 ### Minor Changes
 
-- b6b4e01: Align the semantic package with the `0.2` public release line and correct its repository and license metadata.
+- b6b4e01: Align the semantic package with the `0.2` public release line, correct its repository and license metadata, and publish module-aware types for the Vite entry point.
 
 ### Patch Changes
 
