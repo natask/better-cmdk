@@ -1596,6 +1596,13 @@ const List = React.forwardRef<HTMLDivElement, ListProps>((props, forwardedRef) =
       let start = Math.max(0, Math.floor(list.scrollTop / estHeight) - overscan)
       let end = Math.min(items.length - 1, Math.ceil((list.scrollTop + list.clientHeight) / estHeight) + overscan)
 
+      // The estimated height can be smaller than the rendered row height.
+      // Pin the final item when the browser has clamped the list to its real
+      // scroll boundary so a small estimate error cannot hide the last rows.
+      if (list.scrollTop + list.clientHeight >= list.scrollHeight - 1) {
+        end = items.length - 1
+      }
+
       if (fromSelection) {
         const sid = selectedItemIdRef.current
         const selectedIndex = sid ? items.findIndex((item) => item.id === sid) : -1
