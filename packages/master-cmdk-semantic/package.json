@@ -1,6 +1,6 @@
 {
   "name": "master-cmdk-semantic",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "Client-side semantic scoring helpers for master-cmdk.",
   "main": "./dist/index.js",
@@ -8,6 +8,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "CHANGELOG.md",
     "README.md",
     "LICENSE"
   ],

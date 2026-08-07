@@ -1,6 +1,6 @@
 {
   "name": "master-cmdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "A drop-in replacement for cmdk — same API, smarter matcher, bug fixes, and split pointer/keyboard selection.",
   "main": "./dist/index.js",
@@ -8,6 +8,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "CHANGELOG.md",
     "README.md",
     "LICENSE"
   ],
