@@ -1,5 +1,6 @@
 export * from './actions'
 export * from './openapi'
+export * from './openapi-execution'
 
 export type CommandFilter = (value: string, search: string, keywords?: string[]) => number
 

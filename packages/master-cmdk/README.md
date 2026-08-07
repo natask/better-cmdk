@@ -91,6 +91,8 @@ function InviteCommand() {
 
 `createOpenApiActionSourceAdapter` maps a parsed OpenAPI 3.x document into the same action definitions. The adapter only reads the supplied document. Credentials remain in the host runtime behind the adapter's `configRef`.
 
+Use `createOpenApiExecutionAdapter` with explicit origin and operation allowlists. Register it through `actionExecutorFromAdapter` so the action registry applies permission and confirmation before the request runs.
+
 Leave `confirm` unset to keep write actions in the `confirming` state. Use `useActionRun` to render your own approval UI, then call `registry.execute` with `{ confirmed: true }`.
 
 ## `pointerBehavior`

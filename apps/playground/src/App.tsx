@@ -2,12 +2,14 @@ import { Component, forwardRef, useEffect, useLayoutEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import {
   Command,
+  actionExecutorFromAdapter,
   createActionRegistry,
+  createOpenApiExecutionAdapter,
   createOpenApiActionSourceAdapter,
   defineActions,
   useActionRun,
 } from 'master-cmdk'
-import type { ActionDefinition } from 'master-cmdk'
+import type { ActionDefinition, OpenApiExecutionInput, OpenApiExecutionResult } from 'master-cmdk'
 import { createSemanticCommandScore } from 'master-cmdk-semantic'
 import type { SemanticCommandScore } from 'master-cmdk-semantic'
 import { Command as OldCommand } from 'cmdk'
@@ -136,7 +138,7 @@ const inviteTeammateAction: ActionDefinition<InviteTeammateInput, InviteTeammate
   source: { kind: 'manual', provenance: 'playground' },
 }
 
-const [openApiCustomerAction] = createOpenApiActionSourceAdapter({
+const [openApiCustomerDefinition] = createOpenApiActionSourceAdapter({
   identity: { id: 'playground-api', kind: 'openapi', configRef: 'playground-local' },
 }).load(
   {
@@ -174,7 +176,21 @@ const [openApiCustomerAction] = createOpenApiActionSourceAdapter({
   { signal: new AbortController().signal },
 )
 
+const openApiCustomerAction = openApiCustomerDefinition as ActionDefinition<
+  OpenApiExecutionInput,
+  OpenApiExecutionResult
+>
+
 const playgroundActions = defineActions([inviteTeammateAction, openApiCustomerAction])
+
+const playgroundOrigin = globalThis.location?.origin ?? 'http://localhost:5173'
+const playgroundOpenApiExecution = createOpenApiExecutionAdapter({
+  identity: { id: 'playground-api', kind: 'openapi', configRef: 'playground-local' },
+  allowedOrigins: [playgroundOrigin],
+  allowedOperations: [{ operation: 'getCustomer', method: 'GET', path: '/fixtures/customer.json' }],
+  resolveRuntime: () => ({ baseUrl: playgroundOrigin }),
+  limits: { timeoutMs: 2_000, maxResponseBytes: 1_024 },
+})
 
 // --- small pieces -------------------------------------------------------
 
@@ -645,10 +661,10 @@ export function App() {
       })
       return { invited: email }
     })
-    const removeCustomer = actionRegistry.register(openApiCustomerAction, (input) => {
-      const path = (input as { path: { customerId: string } }).path
-      return { id: path.customerId, name: 'Ada' }
-    })
+    const removeCustomer = actionRegistry.register(
+      openApiCustomerAction,
+      actionExecutorFromAdapter(playgroundOpenApiExecution),
+    )
 
     return () => {
       removeCustomer()
@@ -659,6 +675,10 @@ export function App() {
   const actionRun = useActionRun<InviteTeammateInput, InviteTeammateOutput>(
     actionRegistry,
     inviteTeammateAction.id,
+  )
+  const openApiRun = useActionRun<OpenApiExecutionInput, OpenApiExecutionResult>(
+    actionRegistry,
+    openApiCustomerAction.id,
   )
   const actionOutput = actionRun.output
 
@@ -1831,6 +1851,7 @@ export function App() {
                 <span>source · <code>{playgroundActions[0].source.kind}</code></span>
                 <span>confirmation · <code>{playgroundActions[0].confirmation}</code></span>
                 <span>authority · <code>{playgroundActions[0].authority.access}</code></span>
+                <span>OpenAPI · <code>{openApiRun.status}</code></span>
               </>
             }
           >
@@ -1847,7 +1868,7 @@ export function App() {
                   {playgroundActions.map((action) => (
                     <Command.Action
                       key={action.id}
-                      action={action}
+                      action={action as ActionDefinition}
                       registry={actionRegistry}
                       input={
                         action.id === inviteTeammateAction.id

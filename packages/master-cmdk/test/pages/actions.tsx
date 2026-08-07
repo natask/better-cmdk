@@ -1,11 +1,13 @@
 import {
   Command,
+  actionExecutorFromAdapter,
   createActionRegistry,
+  createOpenApiExecutionAdapter,
   createOpenApiActionSourceAdapter,
   defineActions,
   useActionRun,
 } from 'cmdk'
-import type { ActionDefinition } from 'cmdk'
+import type { ActionDefinition, OpenApiExecutionInput, OpenApiExecutionResult } from 'cmdk'
 import * as React from 'react'
 
 type FindInput = { query: string }
@@ -57,7 +59,7 @@ const deleteAccount: ActionDefinition<{ accountId: string }, { deleted: boolean 
   source: { kind: 'manual' },
 }
 
-const [listTeams] = createOpenApiActionSourceAdapter({
+const [listTeamsDefinition] = createOpenApiActionSourceAdapter({
   identity: { id: 'directory-api', kind: 'openapi', configRef: 'directory-test' },
 }).load(
   {
@@ -93,7 +95,20 @@ const [listTeams] = createOpenApiActionSourceAdapter({
   { signal: new AbortController().signal },
 )
 
+const listTeams = listTeamsDefinition as ActionDefinition<OpenApiExecutionInput, OpenApiExecutionResult>
+
 const actions = defineActions([findCustomer, inviteTeammate, deleteAccount, listTeams])
+
+const directoryExecution = createOpenApiExecutionAdapter({
+  identity: { id: 'directory-api', kind: 'openapi', configRef: 'directory-test' },
+  allowedOrigins: ['http://localhost:3000'],
+  allowedOperations: [{ operation: 'listTeams', method: 'GET', path: '/fixtures/teams.json' }],
+  resolveRuntime: (configRef) => ({
+    baseUrl: 'http://localhost:3000',
+    headers: { 'x-runtime-ref': configRef },
+  }),
+  limits: { timeoutMs: 2_000, maxResponseBytes: 1_024 },
+})
 
 export default function ActionsPage() {
   const registry = React.useMemo(
@@ -113,6 +128,7 @@ export default function ActionsPage() {
   const findRun = useActionRun<FindInput, FindOutput>(registry, findCustomer.id)
   const inviteRun = useActionRun<InviteInput, InviteOutput>(registry, inviteTeammate.id)
   const deleteRun = useActionRun(registry, deleteAccount.id)
+  const teamsRun = useActionRun<OpenApiExecutionInput, OpenApiExecutionResult>(registry, listTeams.id)
 
   React.useEffect(() => {
     const removeFind = registry.register(findCustomer, ({ query }) => ({ customer: query }))
@@ -124,7 +140,7 @@ export default function ActionsPage() {
       setDeleteCalls((calls) => calls + 1)
       return { deleted: true }
     })
-    const removeListTeams = registry.register(listTeams, () => ['Core', 'Growth'])
+    const removeListTeams = registry.register(listTeams, actionExecutorFromAdapter(directoryExecution))
 
     return () => {
       removeListTeams()
@@ -154,6 +170,8 @@ export default function ActionsPage() {
       <div data-testid="invite-output">{inviteRun.output?.invited ?? ''}</div>
       <div data-testid="delete-status">{deleteRun.status}</div>
       <div data-testid="delete-reason">{deleteRun.denial?.reason ?? ''}</div>
+      <div data-testid="teams-status">{teamsRun.status}</div>
+      <div data-testid="teams-output">{JSON.stringify(teamsRun.output?.body ?? null)}</div>
 
       <Command label="Actions">
         <Command.Input placeholder="Search actions" />

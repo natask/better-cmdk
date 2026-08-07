@@ -135,4 +135,50 @@ Map each OpenAPI Operation Object into one `ActionDefinition`:
 
 The connector accepts OpenAPI 3.0, 3.1, and 3.2 documents. It resolves local `$ref` values. Security requirement names must match `components.securitySchemes`. The connector rejects external and circular references. It omits schema examples, defaults, and extensions from manifests. It also removes credentials, query strings, and fragments from the source reference.
 
+## OpenAPI execution
+
+The host supplies the runtime config resolver and the allowlists. The resolver receives the opaque `configRef` from the action. It returns the base URL and runtime-only headers.
+
+```ts
+import {
+  actionExecutorFromAdapter,
+  createActionRegistry,
+  createOpenApiExecutionAdapter,
+} from 'master-cmdk-core'
+
+const execution = createOpenApiExecutionAdapter({
+  identity: {
+    id: 'billing-api',
+    kind: 'openapi',
+    configRef: 'billing-production',
+  },
+  allowedOrigins: ['https://billing.example.com'],
+  allowedOperations: [
+    {
+      operation: 'refundInvoice',
+      method: 'POST',
+      path: '/invoices/{invoiceId}/refund',
+    },
+  ],
+  resolveRuntime: async (configRef) => ({
+    baseUrl: 'https://billing.example.com',
+    headers: { authorization: await secrets.authorizationHeader(configRef) },
+  }),
+  limits: {
+    timeoutMs: 10_000,
+    maxRequestBytes: 64 * 1024,
+    maxResponseBytes: 1024 * 1024,
+  },
+})
+
+const registry = createActionRegistry({ authorize: permissionAdapter.authorize })
+registry.register(refundAction, actionExecutorFromAdapter(execution))
+```
+
+Use `actionExecutorFromAdapter` with the registry. The registry checks permission and confirmation before the adapter sends a request. An action with a permission reference is denied when the registry has no authorizer.
+
+The adapter checks the action identity, operation, and exact origin. It rejects automatic redirects and ambient browser credentials. Input headers need an operation allowlist entry. Action input cannot set authorization or cookie headers.
+
+`OpenApiExecutionError` reports a code, HTTP status when present, and whether a retry is safe. Timeouts and network failures are retryable only for idempotent operations. HTTP 408, 425, 429, 500, 502, 503, and 504 are classified the same way. Error messages omit credential values and response bodies. Successful response data replaces exact runtime header values with `[REDACTED]`.
+
 The OpenAPI specification defines Operation Objects, request bodies, responses, and security requirements: <https://spec.openapis.org/oas/3.2.0.html>.

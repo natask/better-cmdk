@@ -102,6 +102,16 @@ export type ActionExecutionAdapter<TInput = unknown, TOutput = unknown> = {
   ) => TOutput | Promise<TOutput>
 }
 
+export function actionExecutorFromAdapter<TInput = unknown, TOutput = unknown>(
+  adapter: ActionExecutionAdapter<TInput, TOutput>,
+): ActionExecutor<TInput, TOutput> {
+  return (input, context) =>
+    adapter.execute(
+      { action: context.action as ActionDefinition<TInput, unknown>, input },
+      { signal: context.signal },
+    )
+}
+
 export type ActionPermissionRequest<TInput = unknown> = {
   action: ActionDefinition<TInput, unknown>
   input: TInput
@@ -295,6 +305,17 @@ export function createActionRegistry(registryOptions: ActionRegistryOptions = {}
     try {
       const permissionStartedAt = Date.now()
       let permission: ActionPermissionDecision = { decision: 'allow' }
+
+      if (registered.definition.permission && !registryOptions.authorize) {
+        return finishDenied(
+          actionId,
+          input,
+          permissionStartedAt,
+          token,
+          'Action requires a permission adapter',
+          'permission_adapter_missing',
+        )
+      }
 
       if (registryOptions.authorize) {
         const authorizing: ActionRunSnapshot<TInput, TOutput> = {

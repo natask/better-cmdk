@@ -59,4 +59,11 @@ test.describe('actions', () => {
     await page.locator('[cmdk-input]').fill('directory')
     await expect(generated).toBeVisible()
   })
+
+  test('executes an OpenAPI action against the local fixture', async ({ page }) => {
+    await page.locator('[cmdk-item][data-action-id="directory-api:listTeams"]').click()
+
+    await expect(page.locator('[data-testid="teams-status"]')).toHaveText('succeeded')
+    await expect(page.locator('[data-testid="teams-output"]')).toHaveText('{"teams":["Core","Growth"]}')
+  })
 })

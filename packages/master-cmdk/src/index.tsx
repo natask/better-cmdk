@@ -1888,9 +1888,12 @@ export { Empty as CommandEmpty }
 export { Loading as CommandLoading }
 
 export {
+  actionExecutorFromAdapter,
   createActionRegistry,
+  createOpenApiExecutionAdapter,
   createOpenApiActionSourceAdapter,
   defineActions,
+  OpenApiExecutionError,
   requiresActionConfirmation,
 } from 'master-cmdk-core'
 export type {
@@ -1925,6 +1928,16 @@ export type {
   OpenApiActionSourceAdapter,
   OpenApiActionSourceAdapterOptions,
   OpenApiDocument,
+  OpenApiAllowedOperation,
+  OpenApiExecutionAdapter,
+  OpenApiExecutionAdapterOptions,
+  OpenApiExecutionErrorCode,
+  OpenApiExecutionInput,
+  OpenApiExecutionLimits,
+  OpenApiExecutionResult,
+  OpenApiRuntimeConfig,
+  OpenApiRuntimeRequest,
+  OpenApiRuntimeResolver,
 } from 'master-cmdk-core'
 
 /**
