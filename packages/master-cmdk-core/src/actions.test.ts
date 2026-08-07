@@ -1,9 +1,17 @@
 import { describe, expect, test, vi } from 'vitest'
 import { createActionRegistry, defineActions, requiresActionConfirmation } from './actions'
+import type {
+  ActionDefinition,
+  ActionDocumentSource,
+  ActionExecutionAdapter,
+  ActionPermissionAdapter,
+  ActionSourceAdapter,
+} from './actions'
 
 const readAction = {
   id: 'find-customer',
   title: 'Find customer',
+  authority: { access: 'read', scopes: ['customers:read'] },
   effects: {
     readOnly: true,
     destructive: false,
@@ -17,6 +25,7 @@ const readAction = {
 const writeAction = {
   id: 'invite-teammate',
   title: 'Invite teammate',
+  authority: { access: 'write', scopes: ['team:write'] },
   inputSchema: {
     type: 'object',
     properties: { email: { type: 'string', format: 'email' } },
@@ -37,6 +46,45 @@ const writeAction = {
   source: { kind: 'manual', provenance: 'playground' },
 } as const
 
+const openApiAdapter = {
+  id: 'billing-api',
+  kind: 'openapi',
+  version: '3.2',
+  configRef: 'billing-production',
+} as const
+
+const permissionAdapter = {
+  id: 'app-policy',
+  kind: 'permission',
+  configRef: 'production-policy',
+} as const
+
+const openApiAction: ActionDefinition<{ invoiceId: string }, { status: string }> = {
+  id: 'refund-invoice',
+  title: 'Refund invoice',
+  authority: { access: 'write', scopes: ['invoices:refund'] },
+  effects: {
+    readOnly: false,
+    destructive: true,
+    idempotent: false,
+    openWorld: true,
+  },
+  confirmation: 'always',
+  source: {
+    kind: 'openapi',
+    reference: '#/paths/~1invoices~1{id}~1refund/post',
+    adapter: openApiAdapter,
+  },
+  execution: {
+    adapter: openApiAdapter,
+    operation: 'refundInvoice',
+  },
+  permission: {
+    adapter: permissionAdapter,
+    resource: 'invoice',
+  },
+}
+
 describe('defineActions', () => {
   test('keeps a serializable manifest unchanged', () => {
     const manifest = defineActions([readAction, writeAction])
@@ -47,6 +95,59 @@ describe('defineActions', () => {
 
   test('rejects duplicate ids', () => {
     expect(() => defineActions([readAction, readAction])).toThrow('Duplicate action id: find-customer')
+  })
+
+  test('keeps adapter references serializable without inline configuration', () => {
+    const [action] = defineActions([openApiAction])
+    const serialized = JSON.stringify(action)
+
+    expect(JSON.parse(serialized)).toEqual(action)
+    expect(action.execution?.adapter.configRef).toBe('billing-production')
+    expect(serialized).not.toMatch(/apiKey|password|secret|token/i)
+  })
+
+  test('rejects authority that conflicts with declared effects', () => {
+    expect(() =>
+      defineActions([
+        {
+          ...readAction,
+          authority: { access: 'write' },
+        },
+      ]),
+    ).toThrow('Write authority requires write effects: find-customer')
+  })
+})
+
+describe('adapter contracts', () => {
+  test('loads and executes through runtime adapters', async () => {
+    const source: ActionSourceAdapter<ActionDocumentSource<object>> = {
+      identity: openApiAdapter,
+      load: async () => [openApiAction],
+    }
+    const execution: ActionExecutionAdapter<{ invoiceId: string }, { status: string }> = {
+      identity: openApiAdapter,
+      execute: async ({ input }) => ({ status: `refunded:${input.invoiceId}` }),
+    }
+    const permission: ActionPermissionAdapter = {
+      identity: permissionAdapter,
+      authorize: async () => ({ decision: 'allow', confirmation: 'required' }),
+    }
+
+    await expect(source.load({ document: {} }, { signal: new AbortController().signal })).resolves.toEqual([
+      openApiAction,
+    ])
+    await expect(
+      execution.execute(
+        { action: openApiAction, input: { invoiceId: 'inv-1' } },
+        { signal: new AbortController().signal },
+      ),
+    ).resolves.toEqual({ status: 'refunded:inv-1' })
+    await expect(
+      permission.authorize(
+        { action: openApiAction, input: { invoiceId: 'inv-1' } },
+        { signal: new AbortController().signal },
+      ),
+    ).resolves.toEqual({ decision: 'allow', confirmation: 'required' })
   })
 })
 
@@ -145,5 +246,68 @@ describe('createActionRegistry', () => {
     expect(registry.getRun('invite-teammate').status).toBe('confirming')
     expect(registry.reset('invite-teammate')).toBe(true)
     expect(registry.getRun('invite-teammate').status).toBe('idle')
+  })
+
+  test('denies execution before the executor runs', async () => {
+    const executor = vi.fn(() => ({ customer: 'Ada' }))
+    const registry = createActionRegistry({
+      authorize: () => ({ decision: 'deny', reason: 'Missing customer scope', code: 'missing_scope' }),
+    })
+    registry.register(readAction, executor)
+
+    await expect(registry.execute('find-customer', {})).resolves.toMatchObject({
+      status: 'denied',
+      denial: { reason: 'Missing customer scope', code: 'missing_scope' },
+    })
+    expect(executor).not.toHaveBeenCalled()
+  })
+
+  test('lets permission require confirmation without weakening action policy', async () => {
+    const executor = vi.fn(() => ({ customer: 'Ada' }))
+    const authorize = vi.fn(() => ({ decision: 'allow', confirmation: 'required' } as const))
+    const registry = createActionRegistry({ authorize })
+    registry.register(readAction, executor)
+
+    await expect(registry.execute('find-customer', {})).resolves.toMatchObject({ status: 'confirming' })
+    expect(executor).not.toHaveBeenCalled()
+
+    await expect(registry.execute('find-customer', {}, { confirmed: true })).resolves.toMatchObject({
+      status: 'succeeded',
+    })
+    expect(authorize).toHaveBeenCalledTimes(2)
+    expect(executor).toHaveBeenCalledOnce()
+  })
+
+  test('fails closed when the permission adapter throws', async () => {
+    const executor = vi.fn(() => ({ customer: 'Ada' }))
+    const registry = createActionRegistry({
+      authorize: () => {
+        throw new Error('Policy service unavailable')
+      },
+    })
+    registry.register(readAction, executor)
+
+    await expect(registry.execute('find-customer', {})).resolves.toMatchObject({
+      status: 'denied',
+      denial: { reason: 'Permission check failed', code: 'permission_error' },
+    })
+    expect(executor).not.toHaveBeenCalled()
+  })
+
+  test('fails closed when the permission adapter returns an invalid decision', async () => {
+    const executor = vi.fn(() => ({ customer: 'Ada' }))
+    const registry = createActionRegistry({
+      authorize: (() => ({ decision: 'maybe' })) as never,
+    })
+    registry.register(readAction, executor)
+
+    await expect(registry.execute('find-customer', {})).resolves.toMatchObject({
+      status: 'denied',
+      denial: {
+        reason: 'Permission adapter returned an invalid decision',
+        code: 'invalid_permission_decision',
+      },
+    })
+    expect(executor).not.toHaveBeenCalled()
   })
 })

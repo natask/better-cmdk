@@ -1325,6 +1325,7 @@ const ActionImpl = React.forwardRef<HTMLDivElement, ActionProps>((props, forward
     ...itemProps
   } = props
   const run = useActionRun(registry, action.id)
+  const busy = run.status === 'authorizing' || run.status === 'running'
 
   async function executeAction() {
     try {
@@ -1354,9 +1355,10 @@ const ActionImpl = React.forwardRef<HTMLDivElement, ActionProps>((props, forward
       {...itemProps}
       value={action.id}
       keywords={[action.title, ...(action.keywords ?? [])]}
-      disabled={disabled || run.status === 'running'}
-      aria-busy={run.status === 'running' ? true : undefined}
+      disabled={disabled || busy}
+      aria-busy={busy ? true : undefined}
       data-action-id={action.id}
+      data-action-authority={action.authority.access}
       data-action-status={run.status}
       onSelect={() => void executeAction()}
     >
@@ -1891,18 +1893,32 @@ export {
   requiresActionConfirmation,
 } from 'master-cmdk-core'
 export type {
+  ActionAdapterContext,
+  ActionAdapterReference,
+  ActionAuthority,
+  ActionAuthorizer,
   ActionConfirmation,
   ActionDefinition,
+  ActionDocumentSource,
   ActionEffects,
+  ActionExecutionAdapter,
   ActionExecutionContext,
+  ActionExecutionReference,
+  ActionExecutionRequest,
   ActionExecutor,
   ActionManifest,
+  ActionPermissionAdapter,
+  ActionPermissionDecision,
+  ActionPermissionReference,
+  ActionPermissionRequest,
   ActionRegistry,
+  ActionRegistryOptions,
   ActionRegistrySnapshot,
   ActionRunSnapshot,
   ActionRunStatus,
   ActionSchema,
   ActionSource,
+  ActionSourceAdapter,
   ExecuteActionOptions,
 } from 'master-cmdk-core'
 

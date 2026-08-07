@@ -10,7 +10,9 @@ test.describe('actions', () => {
     const invite = page.locator('[cmdk-item][data-action-id="invite-teammate"]')
 
     await expect(find).toHaveAttribute('data-action-status', 'idle')
+    await expect(find).toHaveAttribute('data-action-authority', 'read')
     await expect(invite).toHaveAttribute('data-action-status', 'idle')
+    await expect(invite).toHaveAttribute('data-action-authority', 'write')
 
     await page.locator('[cmdk-input]').fill('account lookup')
     await expect(find).toBeVisible()
@@ -39,5 +41,13 @@ test.describe('actions', () => {
     await expect(page.locator('[data-testid="invite-calls"]')).toHaveText('1')
     await expect(page.locator('[data-testid="invite-status"]')).toHaveText('succeeded')
     await expect(page.locator('[data-testid="invite-output"]')).toHaveText('ada@example.com')
+  })
+
+  test('shows permission denial without running the executor', async ({ page }) => {
+    await page.locator('[cmdk-item][data-action-id="delete-account"]').click()
+
+    await expect(page.locator('[data-testid="delete-status"]')).toHaveText('denied')
+    await expect(page.locator('[data-testid="delete-reason"]')).toHaveText('Account deletion is disabled')
+    await expect(page.locator('[data-testid="delete-calls"]')).toHaveText('0')
   })
 })

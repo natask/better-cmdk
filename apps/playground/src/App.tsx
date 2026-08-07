@@ -107,6 +107,7 @@ type InviteTeammateOutput = { invited: string }
 const inviteTeammateAction: ActionDefinition<InviteTeammateInput, InviteTeammateOutput> = {
   id: 'invite-teammate',
   title: 'Invite teammate',
+  authority: { access: 'write', scopes: ['team:write'] },
   description: 'Send an invitation to a teammate by email.',
   keywords: ['add member', 'new user'],
   inputSchema: {
@@ -1776,7 +1777,7 @@ export function App() {
               <>
                 <span>source · <code>{playgroundActions[0].source.kind}</code></span>
                 <span>confirmation · <code>{playgroundActions[0].confirmation}</code></span>
-                <span>read only · <code>{String(playgroundActions[0].effects.readOnly)}</code></span>
+                <span>authority · <code>{playgroundActions[0].authority.access}</code></span>
               </>
             }
           >

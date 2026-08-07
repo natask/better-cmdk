@@ -54,6 +54,7 @@ type InviteOutput = { invited: string }
 const invite: ActionDefinition<InviteInput, InviteOutput> = {
   id: 'invite-teammate',
   title: 'Invite teammate',
+  authority: { access: 'write', scopes: ['team:write'] },
   keywords: ['add member'],
   effects: {
     readOnly: false,
