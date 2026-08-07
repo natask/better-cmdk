@@ -38,6 +38,9 @@ importers:
       master-cmdk:
         specifier: workspace:*
         version: link:../../packages/master-cmdk
+      master-cmdk-core:
+        specifier: workspace:*
+        version: link:../../packages/master-cmdk-core
       master-cmdk-semantic:
         specifier: workspace:*
         version: link:../../packages/master-cmdk-semantic

@@ -1,3 +1,5 @@
+export * from './actions'
+
 export type CommandFilter = (value: string, search: string, keywords?: string[]) => number
 
 export type CommandSelectionMode = 'single' | 'multiple'

@@ -797,6 +797,60 @@ kbd.hot, .kbd.hot {
   color: var(--amber);
   background: var(--elev-3);
 }
+.pg-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pg-action-demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.7fr);
+  gap: 12px;
+}
+
+.pg-action-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--elev-1);
+  font-family: var(--font-mono);
+}
+
+.pg-action-form label {
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pg-action-form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--elev-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.pg-action-form input:focus {
+  outline: 1px solid var(--amber-line);
+  border-color: var(--amber-line);
+}
+
+.pg-action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+@media (max-width: 720px) {
+  .pg-action-demo { grid-template-columns: 1fr; }
+}
 
 .pg-extlabel {
   display: block;

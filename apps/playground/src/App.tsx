@@ -1,6 +1,8 @@
 import { Component, forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Command } from 'master-cmdk'
+import { createActionRegistry, defineActions } from 'master-cmdk-core'
+import type { ActionDefinition } from 'master-cmdk-core'
 import { createSemanticCommandScore } from 'master-cmdk-semantic'
 import type { SemanticCommandScore } from 'master-cmdk-semantic'
 import { Command as OldCommand } from 'cmdk'
@@ -99,6 +101,36 @@ const filesFilter = (value: string, search: string) => {
 }
 
 const alwaysMatch = () => 1
+
+type InviteTeammateInput = { email: string }
+type InviteTeammateOutput = { invited: string }
+
+const inviteTeammateAction: ActionDefinition<InviteTeammateInput, InviteTeammateOutput> = {
+  id: 'invite-teammate',
+  title: 'Invite teammate',
+  description: 'Send an invitation to a teammate by email.',
+  keywords: ['add member', 'new user'],
+  inputSchema: {
+    type: 'object',
+    properties: { email: { type: 'string', format: 'email' } },
+    required: ['email'],
+  },
+  outputSchema: {
+    type: 'object',
+    properties: { invited: { type: 'string' } },
+    required: ['invited'],
+  },
+  effects: {
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    openWorld: true,
+  },
+  confirmation: 'writes',
+  source: { kind: 'manual', provenance: 'playground' },
+}
+
+const playgroundActions = defineActions([inviteTeammateAction])
 
 // --- small pieces -------------------------------------------------------
 
@@ -527,6 +559,10 @@ export function App() {
   const [mode, setMode] = useState('commands')
   const [filesLoading, setFilesLoading] = useState(false)
   const [modeSearch, setModeSearch] = useState('')
+  const [actionSearch, setActionSearch] = useState('')
+  const [actionEmail, setActionEmail] = useState('ada@example.com')
+  const [, setActionVersion] = useState(0)
+  const actionRegistry = useMemo(() => createActionRegistry(), [])
   const specialGroupValue = 'a.b:c#d"e'
   const scrollOldRef = useRef<HTMLInputElement>(null)
   const scrollNewRef = useRef<HTMLInputElement>(null)
@@ -550,6 +586,43 @@ export function App() {
   useEffect(() => {
     void semanticMatcher.setSearch(matcherSearch)
   }, [semanticMatcher, matcherSearch])
+
+  useEffect(() => {
+    return actionRegistry.subscribe(() => setActionVersion((version) => version + 1))
+  }, [actionRegistry])
+
+  useEffect(() => {
+    return actionRegistry.register(inviteTeammateAction, async ({ email }, { signal }) => {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 450)
+        signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer)
+            resolve()
+          },
+          { once: true },
+        )
+      })
+      return { invited: email }
+    })
+  }, [actionRegistry])
+
+  const actionRun = actionRegistry.getRun(inviteTeammateAction.id)
+  const actionOutput = actionRun.output as InviteTeammateOutput | undefined
+
+  const requestInvite = () => {
+    if (actionRun.status === 'running') return
+    void actionRegistry.execute(inviteTeammateAction.id, { email: actionEmail })
+  }
+
+  const confirmInvite = () => {
+    void actionRegistry.execute<InviteTeammateInput, InviteTeammateOutput>(
+      inviteTeammateAction.id,
+      { email: actionEmail },
+      { confirmed: true },
+    )
+  }
 
   // Build the perf list asynchronously, in 5k-item slices, when either panel
   // is armed or the size selector changes. Cancels any in-flight build on
@@ -637,7 +710,7 @@ export function App() {
           <span className="dot" />
           <span>playground · v1.0 · master-cmdk</span>
           <span style={{ color: 'var(--text-mute)' }}>—</span>
-          <span>11 demos loaded</span>
+          <span>18 demos loaded</span>
         </div>
         <h1 className="pg-hero__title">
           The command palette,<br />
@@ -681,7 +754,8 @@ export function App() {
               ['14', 'onEmpty',           'dx-on-empty'],
               ['15', 'forceMount',        'force-mount-empty'],
               ['16', 'IME · synthetic',   'ime'],
-              ['17', 'Modes',             'modes']
+              ['17', 'Modes',             'modes'],
+              ['18', 'Action manifest',   'actions']
             ].map(([n, label, slug]) => (
               <a key={slug} href={`#${slug}`} className="pg-side__link">
                 <span>{n}</span>
@@ -1681,6 +1755,91 @@ export function App() {
                 </Command>
               }
             />
+          </Pane>
+
+          {/* 18 actions */}
+          <Pane
+            id="actions"
+            num="18"
+            title="Action manifest · confirm and run"
+            chip="actions"
+            desc={
+              <>
+                One serializable action definition drives search, confirmation, execution, and result state.
+                Select <code>Invite teammate</code>, edit the email, then confirm the write.
+              </>
+            }
+            status={
+              <>
+                <b>run state</b> · <code data-testid="action-run-status">{actionRun.status}</code>
+                {actionOutput ? <> · invited <code>{actionOutput.invited}</code></> : null}
+              </>
+            }
+            foot={
+              <>
+                <span>source · <code>{playgroundActions[0].source.kind}</code></span>
+                <span>confirmation · <code>{playgroundActions[0].confirmation}</code></span>
+                <span>read only · <code>{String(playgroundActions[0].effects.readOnly)}</code></span>
+              </>
+            }
+          >
+            <div className="pg-action-demo">
+              <Command label="Action manifest demo">
+                <CmdInput
+                  value={actionSearch}
+                  onValueChange={setActionSearch}
+                  placeholder="search actions…"
+                  type="search"
+                />
+                <Command.List>
+                  <Command.Empty>no matching actions</Command.Empty>
+                  {playgroundActions.map((action) => (
+                    <Command.Item
+                      key={action.id}
+                      value={action.title}
+                      keywords={action.keywords ? [...action.keywords] : undefined}
+                      onSelect={requestInvite}
+                    >
+                      <span className="pg-item__icon">▶</span>
+                      <span className="pg-item__label">{action.title}</span>
+                      <span className="pg-item__meta">write · confirm</span>
+                    </Command.Item>
+                  ))}
+                </Command.List>
+              </Command>
+
+              <div className="pg-action-form">
+                <label htmlFor="action-email">teammate email</label>
+                <input
+                  id="action-email"
+                  data-testid="action-email"
+                  value={actionEmail}
+                  onChange={(event) => setActionEmail(event.target.value)}
+                  disabled={actionRun.status === 'running'}
+                />
+                <div className="pg-action-buttons">
+                  {actionRun.status === 'confirming' ? (
+                    <button className="pg-btn" data-testid="confirm-action" onClick={confirmInvite}>
+                      confirm invite
+                    </button>
+                  ) : (
+                    <button
+                      className="pg-btn"
+                      data-testid="request-action"
+                      disabled={actionRun.status === 'running'}
+                      onClick={requestInvite}
+                    >
+                      prepare invite
+                    </button>
+                  )}
+                  {actionRun.status === 'running' ? (
+                    <button className="pg-btn" onClick={() => actionRegistry.cancel(inviteTeammateAction.id)}>
+                      cancel
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
           </Pane>
         </main>
       </div>
