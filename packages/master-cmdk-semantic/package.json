@@ -55,7 +55,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/natask/master-cmdk.git",
+    "url": "git+https://github.com/natask/better-cmdk.git",
     "directory": "packages/master-cmdk-semantic"
   }
 }
