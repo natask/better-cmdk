@@ -34,6 +34,61 @@ import { Command } from 'master-cmdk'
 - **Async input** — `Command.Input` accepts `debounce` and delivers an `AbortSignal` to `onValueChange`.
 - **DX props** — `inputId`, `defaultSearch`, `onEmpty` callback, `cspNonce` forwarded to Radix Dialog.
 - **`pointerBehavior`** — `fused` | `split` | `locked` (see below).
+- Action items render action data and run its registered executor with confirmation.
+
+## Actions
+
+`master-cmdk` exports the action manifest and registry from its main package. `Command.Action` maps an action into a searchable command item.
+
+```tsx
+import {
+  Command,
+  createActionRegistry,
+  useActionRun,
+} from 'master-cmdk'
+import type { ActionDefinition } from 'master-cmdk'
+
+type InviteInput = { email: string }
+type InviteOutput = { invited: string }
+
+const invite: ActionDefinition<InviteInput, InviteOutput> = {
+  id: 'invite-teammate',
+  title: 'Invite teammate',
+  keywords: ['add member'],
+  effects: {
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    openWorld: true,
+  },
+  confirmation: 'writes',
+  source: { kind: 'manual' },
+}
+
+const registry = createActionRegistry()
+registry.register(invite, async ({ email }) => ({ invited: email }))
+
+function InviteCommand() {
+  const run = useActionRun<InviteInput, InviteOutput>(registry, invite.id)
+
+  return (
+    <Command label="Actions">
+      <Command.Input />
+      <Command.List>
+        <Command.Action
+          action={invite}
+          registry={registry}
+          input={{ email: 'ada@example.com' }}
+          confirm={({ input }) => window.confirm(`Invite ${input.email}?`)}
+        />
+      </Command.List>
+      <output>{run.status}</output>
+    </Command>
+  )
+}
+```
+
+Leave `confirm` unset to keep write actions in the `confirming` state. Use `useActionRun` to render your own approval UI, then call `registry.execute` with `{ confirmed: true }`.
 
 ## `pointerBehavior`
 

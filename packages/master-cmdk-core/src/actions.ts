@@ -103,8 +103,16 @@ export function createActionRegistry() {
   const actions = new Map<string, RegisteredAction>()
   const runs = new Map<string, ActionRunSnapshot>()
   const activeRuns = new Map<string, ActiveRun>()
+  let snapshot: ActionRegistrySnapshot = {
+    actions: [],
+    runs: new Map(),
+  }
 
   function emit() {
+    snapshot = {
+      actions: list(),
+      runs: new Map(Array.from(runs, ([id, run]) => [id, cloneRun(run)])),
+    }
     listeners.forEach((listener) => listener())
   }
 
@@ -148,10 +156,7 @@ export function createActionRegistry() {
   }
 
   function getSnapshot(): ActionRegistrySnapshot {
-    return {
-      actions: list(),
-      runs: new Map(Array.from(runs, ([id, run]) => [id, cloneRun(run)])),
-    }
+    return snapshot
   }
 
   function subscribe(listener: () => void) {
@@ -242,6 +247,13 @@ export function createActionRegistry() {
     return true
   }
 
+  function reset(actionId: string) {
+    if (activeRuns.has(actionId) || !runs.has(actionId)) return false
+    runs.delete(actionId)
+    emit()
+    return true
+  }
+
   function setRun(run: ActionRunSnapshot) {
     runs.set(run.actionId, run)
     emit()
@@ -278,6 +290,7 @@ export function createActionRegistry() {
     subscribe,
     execute,
     cancel,
+    reset,
   }
 }
 

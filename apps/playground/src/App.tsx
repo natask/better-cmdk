@@ -1,8 +1,7 @@
 import { Component, forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Command } from 'master-cmdk'
-import { createActionRegistry, defineActions } from 'master-cmdk-core'
-import type { ActionDefinition } from 'master-cmdk-core'
+import { Command, createActionRegistry, defineActions, useActionRun } from 'master-cmdk'
+import type { ActionDefinition } from 'master-cmdk'
 import { createSemanticCommandScore } from 'master-cmdk-semantic'
 import type { SemanticCommandScore } from 'master-cmdk-semantic'
 import { Command as OldCommand } from 'cmdk'
@@ -561,7 +560,6 @@ export function App() {
   const [modeSearch, setModeSearch] = useState('')
   const [actionSearch, setActionSearch] = useState('')
   const [actionEmail, setActionEmail] = useState('ada@example.com')
-  const [, setActionVersion] = useState(0)
   const actionRegistry = useMemo(() => createActionRegistry(), [])
   const specialGroupValue = 'a.b:c#d"e'
   const scrollOldRef = useRef<HTMLInputElement>(null)
@@ -588,10 +586,6 @@ export function App() {
   }, [semanticMatcher, matcherSearch])
 
   useEffect(() => {
-    return actionRegistry.subscribe(() => setActionVersion((version) => version + 1))
-  }, [actionRegistry])
-
-  useEffect(() => {
     return actionRegistry.register(inviteTeammateAction, async ({ email }, { signal }) => {
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, 450)
@@ -608,8 +602,11 @@ export function App() {
     })
   }, [actionRegistry])
 
-  const actionRun = actionRegistry.getRun(inviteTeammateAction.id)
-  const actionOutput = actionRun.output as InviteTeammateOutput | undefined
+  const actionRun = useActionRun<InviteTeammateInput, InviteTeammateOutput>(
+    actionRegistry,
+    inviteTeammateAction.id,
+  )
+  const actionOutput = actionRun.output
 
   const requestInvite = () => {
     if (actionRun.status === 'running') return
@@ -1794,16 +1791,16 @@ export function App() {
                 <Command.List>
                   <Command.Empty>no matching actions</Command.Empty>
                   {playgroundActions.map((action) => (
-                    <Command.Item
+                    <Command.Action
                       key={action.id}
-                      value={action.title}
-                      keywords={action.keywords ? [...action.keywords] : undefined}
-                      onSelect={requestInvite}
+                      action={action}
+                      registry={actionRegistry}
+                      input={{ email: actionEmail }}
                     >
                       <span className="pg-item__icon">▶</span>
                       <span className="pg-item__label">{action.title}</span>
                       <span className="pg-item__meta">write · confirm</span>
-                    </Command.Item>
+                    </Command.Action>
                   ))}
                 </Command.List>
               </Command>

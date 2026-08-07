@@ -3,6 +3,12 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
 import * as React from 'react'
 import { commandScore } from 'master-cmdk-core'
+import type {
+  ActionDefinition,
+  ActionRegistry,
+  ActionRegistrySnapshot,
+  ActionRunSnapshot,
+} from 'master-cmdk-core'
 import { createAbortableDebounce } from './async'
 import { Primitive } from '@radix-ui/react-primitive'
 import { useId } from '@radix-ui/react-id'
@@ -81,6 +87,25 @@ type ItemProps = Children &
     keywords?: string[]
     /** Whether this item is forcibly rendered regardless of filtering. */
     forceMount?: boolean
+  }
+type ActionConfirmationRequest<TInput, TOutput> = {
+  action: ActionDefinition<TInput, TOutput>
+  input: TInput
+}
+type ActionProps<TInput = unknown, TOutput = unknown> = Children &
+  Omit<ItemProps, 'keywords' | 'onError' | 'onSelect' | 'value'> & {
+    /** Serializable action data used for search and execution metadata. */
+    action: ActionDefinition<TInput, TOutput>
+    /** Registry that owns the action executor and run state. */
+    registry: ActionRegistry
+    /** Input passed to the registered executor when this item is selected. */
+    input: TInput
+    /** Optional approval callback. Leave unset to keep write actions in the confirming state. */
+    confirm?: (request: ActionConfirmationRequest<TInput, TOutput>) => boolean | Promise<boolean>
+    /** Called after each run-state transition started by this item. */
+    onRun?: (run: ActionRunSnapshot<TInput, TOutput>) => void
+    /** Called when registry dispatch or the approval callback throws. */
+    onActionError?: (error: unknown) => void
   }
 type GroupProps = Children &
   Omit<DivProps, 'heading' | 'value'> & {
@@ -1287,6 +1312,63 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>((props, forwardedRef) =
   )
 })
 
+const ActionImpl = React.forwardRef<HTMLDivElement, ActionProps>((props, forwardedRef) => {
+  const {
+    action,
+    registry,
+    input,
+    confirm,
+    onRun,
+    onActionError,
+    disabled,
+    children,
+    ...itemProps
+  } = props
+  const run = useActionRun(registry, action.id)
+
+  async function executeAction() {
+    try {
+      let nextRun = await registry.execute(action.id, input)
+      onRun?.(nextRun)
+
+      if (nextRun.status !== 'confirming' || !confirm) return
+
+      const approved = await confirm({ action, input })
+      if (!approved) {
+        registry.reset(action.id)
+        onRun?.(registry.getRun(action.id))
+        return
+      }
+
+      nextRun = await registry.execute(action.id, input, { confirmed: true })
+      onRun?.(nextRun)
+    } catch (error) {
+      if (onActionError) onActionError(error)
+      else console.error('[master-cmdk] action execution failed', error)
+    }
+  }
+
+  return (
+    <Item
+      ref={forwardedRef}
+      {...itemProps}
+      value={action.id}
+      keywords={[action.title, ...(action.keywords ?? [])]}
+      disabled={disabled || run.status === 'running'}
+      aria-busy={run.status === 'running' ? true : undefined}
+      data-action-id={action.id}
+      data-action-status={run.status}
+      onSelect={() => void executeAction()}
+    >
+      {children ?? action.title}
+    </Item>
+  )
+})
+
+const Action = ActionImpl as <TInput = unknown, TOutput = unknown>(
+  props: ActionProps<TInput, TOutput> & React.RefAttributes<HTMLDivElement>,
+) => React.ReactElement | null
+
 /**
  * Group command menu items together with a heading.
  * Grouped items are always shown together.
@@ -1777,6 +1859,7 @@ const pkg = Object.assign(Command, {
   List,
   Mode,
   Item,
+  Action,
   Input,
   Group,
   Separator,
@@ -1786,6 +1869,7 @@ const pkg = Object.assign(Command, {
 })
 
 export { useCmdk as useCommandState }
+export { useActionRegistry, useActionRun }
 export { pkg as Command }
 export { defaultFilter }
 
@@ -1793,12 +1877,34 @@ export { Command as CommandRoot }
 export { List as CommandList }
 export { Mode as CommandMode }
 export { Item as CommandItem }
+export { Action as CommandAction }
 export { Input as CommandInput }
 export { Group as CommandGroup }
 export { Separator as CommandSeparator }
 export { Dialog as CommandDialog }
 export { Empty as CommandEmpty }
 export { Loading as CommandLoading }
+
+export {
+  createActionRegistry,
+  defineActions,
+  requiresActionConfirmation,
+} from 'master-cmdk-core'
+export type {
+  ActionConfirmation,
+  ActionDefinition,
+  ActionEffects,
+  ActionExecutionContext,
+  ActionExecutor,
+  ActionManifest,
+  ActionRegistry,
+  ActionRegistrySnapshot,
+  ActionRunSnapshot,
+  ActionRunStatus,
+  ActionSchema,
+  ActionSource,
+  ExecuteActionOptions,
+} from 'master-cmdk-core'
 
 /**
  *
@@ -1865,6 +1971,22 @@ function useCmdk<T = any>(selector: (state: State) => T): T {
   const store = useStore()
   const cb = () => selector(store.snapshot())
   return React.useSyncExternalStore(store.subscribe, cb, cb)
+}
+
+function useActionRegistry(registry: ActionRegistry): ActionRegistrySnapshot {
+  return React.useSyncExternalStore(registry.subscribe, registry.getSnapshot, registry.getSnapshot)
+}
+
+function useActionRun<TInput = unknown, TOutput = unknown>(
+  registry: ActionRegistry,
+  actionId: string,
+): ActionRunSnapshot<TInput, TOutput> {
+  const snapshot = useActionRegistry(registry)
+  const idle = React.useMemo<ActionRunSnapshot<TInput, TOutput>>(
+    () => ({ actionId, status: 'idle' }),
+    [actionId],
+  )
+  return (snapshot.runs.get(actionId) as ActionRunSnapshot<TInput, TOutput> | undefined) ?? idle
 }
 
 function useValueSelected(value: React.MutableRefObject<string | undefined>) {

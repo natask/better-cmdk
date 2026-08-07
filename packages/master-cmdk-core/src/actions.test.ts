@@ -126,4 +126,24 @@ describe('createActionRegistry', () => {
 
     expect(listener).toHaveBeenCalledTimes(3)
   })
+
+  test('keeps snapshots stable until state changes', () => {
+    const registry = createActionRegistry()
+    const initial = registry.getSnapshot()
+
+    expect(registry.getSnapshot()).toBe(initial)
+    registry.register(readAction, () => ({ customer: 'Ada' }))
+    expect(registry.getSnapshot()).not.toBe(initial)
+    expect(registry.getSnapshot()).toBe(registry.getSnapshot())
+  })
+
+  test('resets a confirmation request to idle', async () => {
+    const registry = createActionRegistry()
+    registry.register(writeAction, ({ email }: { email: string }) => ({ invited: email }))
+
+    await registry.execute('invite-teammate', { email: 'ada@example.com' })
+    expect(registry.getRun('invite-teammate').status).toBe('confirming')
+    expect(registry.reset('invite-teammate')).toBe(true)
+    expect(registry.getRun('invite-teammate').status).toBe('idle')
+  })
 })
