@@ -1,6 +1,7 @@
 import {
   Command,
   createActionRegistry,
+  createOpenApiActionSourceAdapter,
   defineActions,
   useActionRun,
 } from 'cmdk'
@@ -56,7 +57,43 @@ const deleteAccount: ActionDefinition<{ accountId: string }, { deleted: boolean 
   source: { kind: 'manual' },
 }
 
-const actions = defineActions([findCustomer, inviteTeammate, deleteAccount])
+const [listTeams] = createOpenApiActionSourceAdapter({
+  identity: { id: 'directory-api', kind: 'openapi', configRef: 'directory-test' },
+}).load(
+  {
+    reference: '/fixtures/directory.json',
+    document: {
+      openapi: '3.1.0',
+      info: { title: 'Directory API', version: '1' },
+      components: {
+        securitySchemes: {
+          DirectoryOAuth: { type: 'oauth2' },
+        },
+      },
+      paths: {
+        '/teams': {
+          get: {
+            operationId: 'listTeams',
+            summary: 'List teams from OpenAPI',
+            tags: ['directory'],
+            security: [{ DirectoryOAuth: ['teams:read'] }],
+            responses: {
+              200: {
+                description: 'Teams',
+                content: {
+                  'application/json': { schema: { type: 'array', items: { type: 'string' } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  { signal: new AbortController().signal },
+)
+
+const actions = defineActions([findCustomer, inviteTeammate, deleteAccount, listTeams])
 
 export default function ActionsPage() {
   const registry = React.useMemo(
@@ -87,8 +124,10 @@ export default function ActionsPage() {
       setDeleteCalls((calls) => calls + 1)
       return { deleted: true }
     })
+    const removeListTeams = registry.register(listTeams, () => ['Core', 'Growth'])
 
     return () => {
+      removeListTeams()
       removeDelete()
       removeInvite()
       removeFind()
@@ -131,6 +170,7 @@ export default function ActionsPage() {
             }}
           />
           <Command.Action action={actions[2]} registry={registry} input={{ accountId: 'acct-1' }} />
+          <Command.Action action={actions[3]} registry={registry} input={{}} />
         </Command.List>
       </Command>
     </div>

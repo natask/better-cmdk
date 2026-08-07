@@ -1889,6 +1889,7 @@ export { Loading as CommandLoading }
 
 export {
   createActionRegistry,
+  createOpenApiActionSourceAdapter,
   defineActions,
   requiresActionConfirmation,
 } from 'master-cmdk-core'
@@ -1896,6 +1897,7 @@ export type {
   ActionAdapterContext,
   ActionAdapterReference,
   ActionAuthority,
+  ActionAuthorityRequirement,
   ActionAuthorizer,
   ActionConfirmation,
   ActionDefinition,
@@ -1920,6 +1922,9 @@ export type {
   ActionSource,
   ActionSourceAdapter,
   ExecuteActionOptions,
+  OpenApiActionSourceAdapter,
+  OpenApiActionSourceAdapterOptions,
+  OpenApiDocument,
 } from 'master-cmdk-core'
 
 /**

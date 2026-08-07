@@ -50,4 +50,13 @@ test.describe('actions', () => {
     await expect(page.locator('[data-testid="delete-reason"]')).toHaveText('Account deletion is disabled')
     await expect(page.locator('[data-testid="delete-calls"]')).toHaveText('0')
   })
+
+  test('renders a searchable action generated from OpenAPI', async ({ page }) => {
+    const generated = page.locator('[cmdk-item][data-action-id="directory-api:listTeams"]')
+
+    await expect(generated).toHaveText('List teams from OpenAPI')
+    await expect(generated).toHaveAttribute('data-action-authority', 'read')
+    await page.locator('[cmdk-input]').fill('directory')
+    await expect(generated).toBeVisible()
+  })
 })

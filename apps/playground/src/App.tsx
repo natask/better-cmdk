@@ -1,6 +1,12 @@
 import { Component, forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Command, createActionRegistry, defineActions, useActionRun } from 'master-cmdk'
+import {
+  Command,
+  createActionRegistry,
+  createOpenApiActionSourceAdapter,
+  defineActions,
+  useActionRun,
+} from 'master-cmdk'
 import type { ActionDefinition } from 'master-cmdk'
 import { createSemanticCommandScore } from 'master-cmdk-semantic'
 import type { SemanticCommandScore } from 'master-cmdk-semantic'
@@ -130,7 +136,45 @@ const inviteTeammateAction: ActionDefinition<InviteTeammateInput, InviteTeammate
   source: { kind: 'manual', provenance: 'playground' },
 }
 
-const playgroundActions = defineActions([inviteTeammateAction])
+const [openApiCustomerAction] = createOpenApiActionSourceAdapter({
+  identity: { id: 'playground-api', kind: 'openapi', configRef: 'playground-local' },
+}).load(
+  {
+    reference: '/fixtures/playground-api.json',
+    document: {
+      openapi: '3.1.0',
+      info: { title: 'Playground API', version: '1' },
+      paths: {
+        '/customers/{customerId}': {
+          get: {
+            operationId: 'getCustomer',
+            summary: 'Get customer from OpenAPI',
+            tags: ['customer lookup'],
+            parameters: [
+              { name: 'customerId', in: 'path', required: true, schema: { type: 'string' } },
+            ],
+            responses: {
+              200: {
+                description: 'Customer',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: { id: { type: 'string' }, name: { type: 'string' } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  { signal: new AbortController().signal },
+)
+
+const playgroundActions = defineActions([inviteTeammateAction, openApiCustomerAction])
 
 // --- small pieces -------------------------------------------------------
 
@@ -587,7 +631,7 @@ export function App() {
   }, [semanticMatcher, matcherSearch])
 
   useEffect(() => {
-    return actionRegistry.register(inviteTeammateAction, async ({ email }, { signal }) => {
+    const removeInvite = actionRegistry.register(inviteTeammateAction, async ({ email }, { signal }) => {
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, 450)
         signal.addEventListener(
@@ -601,6 +645,15 @@ export function App() {
       })
       return { invited: email }
     })
+    const removeCustomer = actionRegistry.register(openApiCustomerAction, (input) => {
+      const path = (input as { path: { customerId: string } }).path
+      return { id: path.customerId, name: 'Ada' }
+    })
+
+    return () => {
+      removeCustomer()
+      removeInvite()
+    }
   }, [actionRegistry])
 
   const actionRun = useActionRun<InviteTeammateInput, InviteTeammateOutput>(
@@ -1796,11 +1849,15 @@ export function App() {
                       key={action.id}
                       action={action}
                       registry={actionRegistry}
-                      input={{ email: actionEmail }}
+                      input={
+                        action.id === inviteTeammateAction.id
+                          ? { email: actionEmail }
+                          : { path: { customerId: 'cus-1' } }
+                      }
                     >
                       <span className="pg-item__icon">▶</span>
                       <span className="pg-item__label">{action.title}</span>
-                      <span className="pg-item__meta">write · confirm</span>
+                      <span className="pg-item__meta">{action.authority.access}</span>
                     </Command.Action>
                   ))}
                 </Command.List>

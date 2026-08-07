@@ -100,17 +100,39 @@ const refundAction = {
 
 `ActionSourceAdapter` loads actions. `ActionExecutionAdapter` runs an action. `ActionPermissionAdapter` decides whether the current caller may run it.
 
-## OpenAPI entry point
+## OpenAPI connector
 
-The next connector should implement `ActionSourceAdapter<ActionDocumentSource<OpenApiDocument>>.load`. Pass the parsed OpenAPI document at runtime. `ActionDocumentSource.reference` may hold a safe file path or public URL for provenance.
+Create the adapter with an identity and pass it a parsed document. The adapter reads local data only. It does not fetch the document or call the described API.
+
+```ts
+import { createOpenApiActionSourceAdapter } from 'master-cmdk-core'
+
+const adapter = createOpenApiActionSourceAdapter({
+  identity: {
+    id: 'billing-api',
+    kind: 'openapi',
+    version: '3.1',
+    configRef: 'billing-production',
+  },
+})
+
+const actions = adapter.load(
+  { document: parsedDocument, reference: '/specs/billing.json' },
+  { signal: abortController.signal },
+)
+```
+
+The entry point is `ActionSourceAdapter<ActionDocumentSource<OpenApiDocument>>.load`.
 
 Map each OpenAPI Operation Object into one `ActionDefinition`:
 
 - Use `operationId` as `execution.operation`. Fall back to a stable method and path key when it is absent.
 - Build `inputSchema` from parameters and `requestBody`.
 - Build `outputSchema` from the selected success response.
-- Map OpenAPI security requirement names and OAuth scopes into `authority.scopes`.
-- Set read or write authority from the HTTP method, with an adapter option for explicit overrides.
+- Preserve security alternatives in `authority.requirements`. The outer array uses OR. Requirements inside one alternative use AND.
+- Set read or write authority from the HTTP method.
 - Store only the adapter `configRef`. Resolve API keys and OAuth tokens inside the runtime execution adapter.
+
+The connector accepts OpenAPI 3.0, 3.1, and 3.2 documents. It resolves local `$ref` values. Security requirement names must match `components.securitySchemes`. The connector rejects external and circular references. It omits schema examples, defaults, and extensions from manifests. It also removes credentials, query strings, and fragments from the source reference.
 
 The OpenAPI specification defines Operation Objects, request bodies, responses, and security requirements: <https://spec.openapis.org/oas/3.2.0.html>.

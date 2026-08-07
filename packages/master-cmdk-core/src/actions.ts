@@ -9,9 +9,17 @@ export type ActionEffects = {
 
 export type ActionConfirmation = 'never' | 'writes' | 'always'
 
+export type ActionAuthorityRequirement = {
+  /** Security scheme name or URI from the source document. */
+  scheme: string
+  scopes?: readonly string[]
+}
+
 export type ActionAuthority = {
   access: 'read' | 'write'
   scopes?: readonly string[]
+  /** Alternatives are OR-ed. Requirements inside one alternative are AND-ed. */
+  requirements?: readonly (readonly ActionAuthorityRequirement[])[]
 }
 
 export type ActionAdapterReference = {
