@@ -90,8 +90,8 @@ const useCmd = () => {
 //   - otherwise ⇒ return 0
 //
 function score(haystack: string, search: string): number {
-  // TODO 1: replace this stub.
-  return  haystack.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+  if (search === '') return 1
+  return haystack.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
 }
 
 // ---------------------------------------------------------------
@@ -140,7 +140,12 @@ export function Command({
   // list, call `setSelected(visible[0] ?? null)`.
   //
   useEffect(() => {
-    // TODO 5: replace this stub.
+    const visible = getVisible()
+    setSelected((current) =>
+      current !== null && visible.includes(current)
+        ? current
+        : (visible[0] ?? null),
+    )
   }, [search, version])
 
   const ctx: Ctx = {
@@ -192,7 +197,8 @@ Command.Input = function Input(
     // `e.preventDefault()` so the caret doesn't jump in the input.
     //
     if (e.key === 'ArrowDown') {
-      // TODO 2: replace this stub.
+      e.preventDefault()
+      setSelected(visible[(i + 1) % visible.length])
     }
 
     // --------- TODO 3: ArrowUp = prev, wrap at start -----------
@@ -201,7 +207,8 @@ Command.Input = function Input(
     // the LAST item (visible.length - 1). Think about modular arithmetic.
     //
     if (e.key === 'ArrowUp') {
-      // TODO 3: replace this stub.
+      e.preventDefault()
+      setSelected(visible[i <= 0 ? visible.length - 1 : i - 1])
     }
 
     // --------- TODO 4: Enter = commit selected -----------------
@@ -210,7 +217,10 @@ Command.Input = function Input(
     // Don't forget `e.preventDefault()`.
     //
     if (e.key === 'Enter') {
-      // TODO 4: replace this stub.
+      if (selected !== null) {
+        e.preventDefault()
+        commit(selected)
+      }
     }
   }
 
@@ -288,7 +298,7 @@ Command.Item = function Item({
   // Skip if not selected.
   //
   useEffect(() => {
-    // TODO 6: replace this stub.
+    if (isSelected) ref.current?.scrollIntoView({ block: 'nearest' })
   }, [isSelected])
 
   return (
